@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../db/supabase';
-import { connectSync, disconnectAndClearData, migrateGuestDataToUser } from '../db/powersync';
+import { connectSync, disconnectAndClearData, migrateGuestDataToUser, powersync } from '../db/powersync';
 
 interface AuthContextType {
   user: User | null;
@@ -22,6 +22,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let isMounted = true;
 
+    const fetchAndSyncProfile = async (userId: string) => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+          
+        if (profile) {
+          await powersync.execute(
+            `INSERT OR REPLACE INTO profiles (id, username, age, weight_kg, height_cm, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              profile.id,
+              profile.username || null,
+              profile.age || null,
+              profile.weight_kg || null,
+              profile.height_cm || null,
+              profile.updated_at || new Date().toISOString()
+            ]
+          );
+        }
+      } catch (e) {
+        console.warn('Fallback profile fetch failed:', e);
+      }
+    };
+
     // Retrieve initial session from Supabase
     supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
       if (!isMounted) return;
@@ -31,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (initialSession?.user?.id) {
         await migrateGuestDataToUser(initialSession.user.id);
+        await fetchAndSyncProfile(initialSession.user.id);
         await connectSync();
       }
     }).catch((err) => {
@@ -48,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && currentSession?.user?.id) {
         // Atomically reassign offline/guest records to newly authenticated user before sync connects
         await migrateGuestDataToUser(currentSession.user.id);
+        await fetchAndSyncProfile(currentSession.user.id);
         await connectSync();
       } else if (event === 'SIGNED_OUT') {
         await disconnectAndClearData();

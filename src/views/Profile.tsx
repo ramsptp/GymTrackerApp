@@ -203,7 +203,7 @@ export const ProfileView: React.FC = () => {
       {/* View Header */}
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
-          Profile
+          Profile{profile?.username ? ` - ${profile.username}` : ''}
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
           {user ? 'Cloud sync and device telemetry active' : 'Log in to securely sync your gym records to the cloud'}
@@ -277,11 +277,13 @@ export const ProfileView: React.FC = () => {
                       height: '44px',
                       borderRadius: 'var(--radius-md)',
                       border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      color: profile?.username ? 'var(--text-secondary)' : 'var(--text-primary)',
+                      backgroundColor: profile?.username ? 'var(--bg-surface)' : 'var(--bg-surface-elevated)',
+                      color: profile?.username ? 'var(--text-muted)' : 'var(--text-primary)',
                       fontSize: '1rem',
                       padding: '0 16px',
-                      outline: 'none'
+                      outline: 'none',
+                      cursor: profile?.username ? 'not-allowed' : 'text',
+                      opacity: profile?.username ? 0.6 : 1
                     }}
                   />
                   {!profile?.username && (

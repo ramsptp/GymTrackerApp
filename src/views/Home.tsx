@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Play, Plus, Layers, Bolt, MoreVertical, Edit3, Trash2 } from 'lucide-react';
 import { powersync, deleteSnippet } from '../db/powersync';
 import type { SnippetRecord, WorkoutRecord, SetRecord } from '../db/schema';
+import { useAuth } from '../context/AuthContext';
+import { useQuery } from '@powersync/react';
 
 interface HomeViewProps {
   onStartSnippetWorkout: (snippet: SnippetRecord) => void;
@@ -19,6 +21,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [weeklyCount, setWeeklyCount] = useState(0);
   const [monthlyVolume, setMonthlyVolume] = useState(0);
   const [monthlySessions, setMonthlySessions] = useState(0);
+
+  const { user } = useAuth();
+  const { data: profileData } = useQuery('SELECT username FROM profiles WHERE id = ?', [user?.id || '']);
+  const profile = profileData?.[0];
 
   const loadData = async () => {
     try {
@@ -132,7 +138,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Ready to Train?
+              Ready to Train{profile?.username ? `, ${profile.username}` : ''}?
             </h2>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
               Start an unscripted session or jump straight into a routine.
