@@ -10,6 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor-community/sqlite": "^8.1.1",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^7.6.9",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@powersync/capacitor": "^0.9.1",
     "@powersync/react": "^2.0.1",
     "@powersync/web": "^2.3.1",
     "@supabase/supabase-js": "^2.109.0",

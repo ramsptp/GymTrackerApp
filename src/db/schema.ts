@@ -38,6 +38,7 @@ export const setsTable = new Table({
   reps: column.integer,
   set_type: column.text,
   logged_at: column.text,
+  user_id: column.text,
 });
 
 export const AppSchema = new Schema({
@@ -89,4 +90,5 @@ export interface SetRecord {
   reps: number;
   set_type: SetType;
   logged_at: string;
+  user_id?: string | null;
 }

@@ -1,36 +1,27 @@
 import { UpdateType } from '@powersync/web';
 import type { PowerSyncBackendConnector, PowerSyncCredentials } from '@powersync/web';
-import { createClient } from '@supabase/supabase-js';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from './supabase';
 
 export class SupabaseConnector implements PowerSyncBackendConnector {
-  client: SupabaseClient | null = null;
-  supabaseUrl: string;
-  supabaseAnonKey: string;
   powersyncUrl: string;
 
   constructor() {
-    this.supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-    this.supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
     this.powersyncUrl = import.meta.env.VITE_POWERSYNC_URL || '';
-
-    if (this.supabaseUrl && this.supabaseAnonKey) {
-      this.client = createClient(this.supabaseUrl, this.supabaseAnonKey);
-    }
   }
 
   isConfigured(): boolean {
-    return Boolean(this.client && this.powersyncUrl);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    return Boolean(supabaseUrl && supabaseAnonKey && this.powersyncUrl);
   }
 
   async fetchCredentials(): Promise<PowerSyncCredentials | null> {
-    if (!this.client || !this.powersyncUrl) {
-      // Local standalone mode: PowerSync continues offline with local SQLite
+    if (!this.powersyncUrl) {
       return null;
     }
 
     try {
-      const { data: { session }, error } = await this.client.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
       if (error || !session) {
         return null;
       }
@@ -47,7 +38,9 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
   }
 
   async uploadData(database: any): Promise<void> {
-    if (!this.client) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      // Not logged in or no session, cannot upload to Supabase RLS-protected tables
       return;
     }
 
@@ -60,10 +53,10 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
           const data = { ...op.opData, id: op.id };
 
           if (op.op === UpdateType.PUT || op.op === UpdateType.PATCH || op.op === 'PUT' || op.op === 'PATCH') {
-            const { error } = await this.client.from(table).upsert(data);
+            const { error } = await supabase.from(table).upsert(data);
             if (error) throw error;
           } else if (op.op === UpdateType.DELETE || op.op === 'DELETE') {
-            const { error } = await this.client.from(table).delete().eq('id', op.id);
+            const { error } = await supabase.from(table).delete().eq('id', op.id);
             if (error) throw error;
           }
         }

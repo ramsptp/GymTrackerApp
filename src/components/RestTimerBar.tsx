@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Minus } from 'lucide-react';
+import { Haptics } from '@capacitor/haptics';
 
 interface RestTimerProps {
   initialSeconds?: number;
@@ -26,9 +27,12 @@ export const RestTimerBar: React.FC<RestTimerProps> = ({
     if (!isOpen || !isRunning) return;
 
     if (secondsLeft <= 0) {
-      if (window.navigator?.vibrate) {
-        window.navigator.vibrate([100, 50, 100]);
-      }
+      // Trigger Capacitor Native Haptics vibration pulse
+      Haptics.vibrate({ duration: 500 }).catch(() => {
+        if (typeof window !== 'undefined' && window.navigator?.vibrate) {
+          window.navigator.vibrate([200, 100, 200]);
+        }
+      });
       onClose();
       return;
     }
@@ -50,6 +54,10 @@ export const RestTimerBar: React.FC<RestTimerProps> = ({
     setSecondsLeft((prev) => prev + 30);
   };
 
+  const minus15Seconds = () => {
+    setSecondsLeft((prev) => Math.max(0, prev - 15));
+  };
+
   return (
     <div className="rest-timer-bar">
       <div>
@@ -59,20 +67,32 @@ export const RestTimerBar: React.FC<RestTimerProps> = ({
         <div className="timer-countdown">{formatted}</div>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <button
+          onClick={minus15Seconds}
+          className="btn btn-secondary"
+          id="btn-timer-minus-15"
+          style={{ height: '44px', minHeight: '44px', padding: '0 10px', fontSize: '0.82rem', gap: '4px' }}
+          title="Subtract 15 seconds"
+        >
+          <Minus size={15} /> 15s
+        </button>
+
         <button
           onClick={add30Seconds}
           className="btn btn-secondary"
-          style={{ height: '44px', minHeight: '44px', padding: '0 12px', fontSize: '0.85rem' }}
+          id="btn-timer-plus-30"
+          style={{ height: '44px', minHeight: '44px', padding: '0 10px', fontSize: '0.82rem', gap: '4px' }}
           title="Add 30 seconds"
         >
-          <Plus size={16} /> 30s
+          <Plus size={15} /> 30s
         </button>
 
         <button
           onClick={onClose}
           className="btn btn-secondary"
-          style={{ height: '44px', minHeight: '44px', padding: '0 12px', fontSize: '0.85rem', color: 'var(--accent-rose)' }}
+          id="btn-timer-close"
+          style={{ height: '44px', minHeight: '44px', padding: '0 10px', fontSize: '0.85rem', color: 'var(--accent-rose)' }}
           title="Skip rest"
         >
           <X size={18} />

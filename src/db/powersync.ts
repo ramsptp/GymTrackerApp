@@ -1,17 +1,30 @@
-import { PowerSyncDatabase } from '@powersync/web';
+import { PowerSyncDatabase } from '@powersync/capacitor';
 import { v4 as uuidv4 } from 'uuid';
 import { AppSchema } from './schema';
 import type { SetType, ExerciseRecord, SnippetRecord } from './schema';
 import { connector } from './connector';
+import { supabase } from './supabase';
 
 export const powersync = new PowerSyncDatabase({
   schema: AppSchema,
   database: {
-    dbFilename: 'gym_tracker.db',
+    dbFilename: 'gym_tracker.sqlite',
   },
 });
 
 export const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
+export async function getCurrentUserId(): Promise<string> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+      return session.user.id;
+    }
+  } catch (e) {
+    console.warn('Could not fetch auth session for current user id:', e);
+  }
+  return DEFAULT_USER_ID;
+}
 
 const INITIAL_EXERCISES = [
   { name: 'Barbell Bench Press', muscle_group: 'Chest' },
@@ -36,18 +49,7 @@ const INITIAL_EXERCISES = [
   { name: 'Cable Woodchopper', muscle_group: 'Core' },
 ];
 
-export async function initDatabase() {
-  await powersync.init();
-
-  if (connector.isConfigured()) {
-    try {
-      await powersync.connect(connector);
-    } catch (err) {
-      console.warn('Could not connect to PowerSync backend (running local SQLite):', err);
-    }
-  }
-
-  // Seed default exercises if table is empty
+export async function seedDefaultExercises() {
   try {
     const existing = await powersync.getAll<{ count: number }>('SELECT count(*) as count FROM exercises');
     if (!existing[0] || existing[0].count === 0) {
@@ -133,12 +135,84 @@ export async function initDatabase() {
   }
 }
 
+export async function connectSync() {
+  if (connector.isConfigured()) {
+    try {
+      await powersync.connect(connector);
+    } catch (err) {
+      console.warn('PowerSync connect warning:', err);
+    }
+  }
+}
+
+export async function disconnectAndClearData() {
+  try {
+    await powersync.disconnectAndClear({ clearLocal: true });
+    // Re-seed default exercises so the app continues functioning smoothly for next user
+    await seedDefaultExercises();
+  } catch (err) {
+    console.error('Error disconnecting and clearing PowerSync data:', err);
+  }
+}
+
+export async function migrateGuestDataToUser(newUserId: string) {
+  if (!newUserId || newUserId === DEFAULT_USER_ID) return;
+
+  try {
+    await powersync.writeTransaction(async (tx) => {
+      // 1. Reassign guest snippets
+      await tx.execute(
+        'UPDATE snippets SET user_id = ? WHERE user_id = ? OR user_id = ?',
+        [newUserId, DEFAULT_USER_ID, 'default_user']
+      );
+
+      // 2. Reassign guest workouts
+      await tx.execute(
+        'UPDATE workouts SET user_id = ? WHERE user_id = ? OR user_id = ?',
+        [newUserId, DEFAULT_USER_ID, 'default_user']
+      );
+
+      // 3. Reassign guest sets
+      await tx.execute(
+        'UPDATE sets SET user_id = ? WHERE user_id = ? OR user_id = ?',
+        [newUserId, DEFAULT_USER_ID, 'default_user']
+      );
+
+      // 4. Reassign custom exercises
+      await tx.execute(
+        'UPDATE exercises SET user_id = ? WHERE is_custom = 1 AND (user_id = ? OR user_id = ?)',
+        [newUserId, DEFAULT_USER_ID, 'default_user']
+      );
+    });
+  } catch (err) {
+    console.error('Error during guest data migration:', err);
+  }
+}
+
+export async function initDatabase() {
+  await powersync.init();
+
+  // Connect only if authenticated session is already available
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session && connector.isConfigured()) {
+      await powersync.connect(connector);
+    }
+  } catch (err) {
+    console.warn('Could not auto-connect sync on init:', err);
+  }
+
+  // Seed default exercises if table is empty
+  await seedDefaultExercises();
+}
+
 // Database helper functions (All UUIDs generated on client side)
-export async function createExercise(name: string, muscle_group: string, userId: string = DEFAULT_USER_ID) {
+export async function createExercise(name: string, muscle_group: string, userId?: string) {
+  const activeUserId = userId ?? (await getCurrentUserId());
   const id = uuidv4();
   await powersync.execute(
     'INSERT INTO exercises (id, name, muscle_group, is_custom, user_id) VALUES (?, ?, ?, 1, ?)',
-    [id, name, muscle_group, userId]
+    [id, name, muscle_group, activeUserId]
   );
   return id;
 }
@@ -146,15 +220,16 @@ export async function createExercise(name: string, muscle_group: string, userId:
 export async function createSnippet(
   name: string,
   exerciseIds: string[] = [],
-  userId: string = DEFAULT_USER_ID
+  userId?: string
 ) {
+  const activeUserId = userId ?? (await getCurrentUserId());
   const id = uuidv4();
   const createdAt = new Date().toISOString();
 
   await powersync.writeTransaction(async (tx) => {
     await tx.execute(
       'INSERT INTO snippets (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
-      [id, userId, name, createdAt]
+      [id, activeUserId, name, createdAt]
     );
 
     for (let i = 0; i < exerciseIds.length; i++) {
@@ -212,12 +287,13 @@ export async function getSnippetExercises(snippetId: string): Promise<ExerciseRe
   );
 }
 
-export async function startWorkout(snippetId?: string, userId: string = DEFAULT_USER_ID) {
+export async function startWorkout(snippetId?: string, userId?: string) {
+  const activeUserId = userId ?? (await getCurrentUserId());
   const id = uuidv4();
   const startTime = new Date().toISOString();
   await powersync.execute(
     'INSERT INTO workouts (id, user_id, snippet_id, start_time, end_time) VALUES (?, ?, ?, ?, NULL)',
-    [id, userId, snippetId || null, startTime]
+    [id, activeUserId, snippetId || null, startTime]
   );
   return id;
 }
@@ -243,12 +319,14 @@ export async function logSet(params: {
   weight: number;
   reps: number;
   setType: SetType;
+  userId?: string;
 }) {
+  const activeUserId = params.userId ?? (await getCurrentUserId());
   const id = uuidv4();
   const loggedAt = new Date().toISOString();
   await powersync.execute(
-    'INSERT INTO sets (id, workout_id, exercise_id, weight, reps, set_type, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [id, params.workoutId, params.exerciseId, params.weight, params.reps, params.setType, loggedAt]
+    'INSERT INTO sets (id, workout_id, exercise_id, weight, reps, set_type, logged_at, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, params.workoutId, params.exerciseId, params.weight, params.reps, params.setType, loggedAt, activeUserId]
   );
   return id;
 }

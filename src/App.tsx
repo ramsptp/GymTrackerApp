@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, Layers, History, Play } from 'lucide-react';
+import { Dumbbell, Layers, History, Play, User } from 'lucide-react';
 import { initDatabase, startWorkout } from './db/powersync';
 import type { SnippetRecord } from './db/schema';
 import { ActiveWorkout } from './components/ActiveWorkout';
@@ -7,6 +7,7 @@ import { HomeView } from './views/Home';
 import { ExercisesView } from './views/Exercises';
 import { HistoryView } from './views/History';
 import { SnippetBuilderView } from './views/SnippetBuilder';
+import { AccountView } from './views/Account';
 import { SyncStatusBadge } from './components/SyncStatusBadge';
 
 export const App: React.FC = () => {
@@ -169,11 +170,16 @@ export const App: React.FC = () => {
             <div style={{ display: currentPath === '/history' ? 'block' : 'none' }}>
               <HistoryView />
             </div>
+
+            {/* Account & Cloud Sync View */}
+            <div style={{ display: currentPath === '/account' ? 'block' : 'none' }}>
+              <AccountView />
+            </div>
           </>
         )}
       </main>
 
-      {/* Persistent Active Workout Mini-Banner (when navigating away to exercises/history) */}
+      {/* Persistent Active Workout Mini-Banner (when navigating away to exercises/history/account) */}
       {!isSnippetBuilder && activeWorkout && currentPath !== '/' && (
         <div
           onClick={() => navigate('/')}
@@ -221,7 +227,7 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Persistent Bottom Tab Bar (Hidden in Snippet Builder) */}
+      {/* Persistent Bottom Tab Bar (4 Tabs) */}
       {!isSnippetBuilder && (
         <nav className="bottom-tab-bar">
           <button
@@ -249,6 +255,15 @@ export const App: React.FC = () => {
           >
             <History size={22} />
             <span>History</span>
+          </button>
+
+          <button
+            className={`tab-btn ${currentPath === '/account' ? 'active' : ''}`}
+            onClick={() => navigate('/account')}
+            id="tab-account"
+          >
+            <User size={22} />
+            <span>Account</span>
           </button>
         </nav>
       )}

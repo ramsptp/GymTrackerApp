@@ -108,7 +108,7 @@ export const SyncStatusBadge: React.FC = () => {
                   LOCAL DATABASE ENGINE
                 </label>
                 <div style={{ background: 'var(--bg-surface-elevated)', padding: '10px 12px', borderRadius: '8px', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
-                  SQLite WASM (OPFS / IndexedDB VFS)
+                  Capacitor Native SQLite (Android SQLite3)
                 </div>
               </div>
             </div>
