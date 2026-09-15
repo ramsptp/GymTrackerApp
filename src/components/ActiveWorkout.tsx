@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Check, Plus, Trash2, Clock, Award, Dumbbell } from 'lucide-react';
 import { powersync, logSet, deleteSet, finishWorkout, cancelWorkout } from '../db/powersync';
 import type { SetType, ExerciseRecord } from '../db/schema';
-import { RestTimerBar } from './RestTimerBar';
+
 
 interface ActiveWorkoutProps {
   workoutId: string;
@@ -36,7 +36,6 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [restTimerOpen, setRestTimerOpen] = useState(false);
   const [showFinishSummary, setShowFinishSummary] = useState(false);
   const [summaryStats, setSummaryStats] = useState({ volume: 0, sets: 0, duration: '' });
 
@@ -68,9 +67,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
             const defaults = snippetExercises.map((ex) => ({
               exercise: ex,
               sets: [
-                { setNumber: 1, weight: 60, reps: 10, setType: 'Normal' as SetType, isLogged: false },
-                { setNumber: 2, weight: 60, reps: 10, setType: 'Normal' as SetType, isLogged: false },
-                { setNumber: 3, weight: 60, reps: 10, setType: 'Normal' as SetType, isLogged: false },
+                { setNumber: 1, weight: 0, reps: 0, setType: 'Normal' as SetType, isLogged: false },
               ],
             }));
             setExercises(defaults);
@@ -78,18 +75,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
           }
         }
 
-        // Pre-populate with first 2 exercises only if freestyle and empty
-        if (rows.length > 0 && exercises.length === 0) {
-          const defaults = rows.slice(0, 2).map((ex) => ({
-            exercise: ex,
-            sets: [
-              { setNumber: 1, weight: 60, reps: 10, setType: 'Normal' as SetType, isLogged: false },
-              { setNumber: 2, weight: 60, reps: 10, setType: 'Normal' as SetType, isLogged: false },
-              { setNumber: 3, weight: 60, reps: 10, setType: 'Normal' as SetType, isLogged: false },
-            ],
-          }));
-          setExercises(defaults);
-        }
+
       } catch (err) {
         console.error('Error loading exercises:', err);
       }
@@ -163,9 +149,6 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         updated[exerciseIndex].sets[setIndex].id = setId;
         return updated;
       });
-
-      // Trigger auto-rest timer
-      setRestTimerOpen(true);
     } else if (targetSet.id) {
       // Toggle off / delete from SQLite
       await deleteSet(targetSet.id);
@@ -202,9 +185,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       {
         exercise: ex,
         sets: [
-          { setNumber: 1, weight: 40, reps: 10, setType: 'Normal', isLogged: false },
-          { setNumber: 2, weight: 40, reps: 10, setType: 'Normal', isLogged: false },
-          { setNumber: 3, weight: 40, reps: 10, setType: 'Normal', isLogged: false },
+          { setNumber: 1, weight: 0, reps: 0, setType: 'Normal', isLogged: false },
         ],
       },
     ]);
@@ -410,12 +391,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         </button>
       </div>
 
-      {/* Floating Rest Timer */}
-      <RestTimerBar
-        isOpen={restTimerOpen}
-        initialSeconds={90}
-        onClose={() => setRestTimerOpen(false)}
-      />
+
 
       {/* Add Exercise Modal */}
       {showAddModal && (

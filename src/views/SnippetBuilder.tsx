@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowUp, ArrowDown, Trash2, Plus, Search, X, Dumbbell } from 'lucide-react';
+import { Trash2, Plus, Search, X, Dumbbell, GripVertical } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { powersync, createSnippet, updateSnippet, getSnippetById, getSnippetExercises } from '../db/powersync';
 import type { ExerciseRecord } from '../db/schema';
 
@@ -11,13 +14,128 @@ interface SnippetBuilderProps {
 
 const MUSCLE_GROUPS = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
+interface SelectedExercise extends ExerciseRecord {
+  _uniqueId: string;
+}
+
+const SortableExerciseRow = ({ 
+  ex, 
+  index, 
+  onRemove 
+}: { 
+  ex: SelectedExercise; 
+  index: number; 
+  onRemove: () => void 
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: ex._uniqueId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1 : 0,
+    position: 'relative' as const,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        ...style,
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: '16px',
+        padding: '8px 12px 8px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        minHeight: '68px',
+      }}
+    >
+      {/* Drag Handle Area */}
+      <div 
+        {...attributes} 
+        {...listeners} 
+        style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0, cursor: 'grab', touchAction: 'none' }}
+      >
+        <GripVertical size={20} color="var(--text-muted)" />
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.85rem',
+            fontWeight: 800,
+            color: 'var(--accent-green)',
+            background: 'var(--bg-surface-elevated)',
+            width: '28px',
+            height: '28px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          {index + 1}
+        </span>
+        <div style={{ minWidth: 0, paddingRight: '8px' }}>
+          <div
+            style={{
+              fontSize: '1.02rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {ex.name}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            {ex.muscle_group}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+        {/* Remove Exercise Button */}
+        <button
+          type="button"
+          onClick={onRemove}
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '12px',
+            border: '1px solid rgba(244, 63, 94, 0.25)',
+            backgroundColor: 'rgba(244, 63, 94, 0.1)',
+            color: 'var(--accent-rose)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+          title="Remove exercise"
+        >
+          <Trash2 size={20} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
   snippetId,
   onSave,
   onCancel,
 }) => {
   const [snippetName, setSnippetName] = useState('');
-  const [selectedExercises, setSelectedExercises] = useState<ExerciseRecord[]>([]);
+  const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([]);
   const [allCatalogExercises, setAllCatalogExercises] = useState<ExerciseRecord[]>([]);
   const [showPickerModal, setShowPickerModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,7 +161,7 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
             setSnippetName(existingSnippet.name);
           }
           const assignedExercises = await getSnippetExercises(snippetId);
-          setSelectedExercises(assignedExercises);
+          setSelectedExercises(assignedExercises.map(e => ({ ...e, _uniqueId: Math.random().toString(36).substring(2, 9) })));
         }
       } catch (err) {
         console.error('Error loading snippet builder data:', err);
@@ -54,29 +172,27 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
     loadInitial();
   }, [snippetId]);
 
-  // Reorder exercise rows using Up / Down buttons
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    if (window.navigator?.vibrate) window.navigator.vibrate(25);
-    setSelectedExercises((prev) => {
-      const copy = [...prev];
-      const temp = copy[index - 1];
-      copy[index - 1] = copy[index];
-      copy[index] = temp;
-      return copy;
-    });
-  };
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-  const handleMoveDown = (index: number) => {
-    if (index === selectedExercises.length - 1) return;
-    if (window.navigator?.vibrate) window.navigator.vibrate(25);
-    setSelectedExercises((prev) => {
-      const copy = [...prev];
-      const temp = copy[index + 1];
-      copy[index + 1] = copy[index];
-      copy[index] = temp;
-      return copy;
-    });
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSelectedExercises((items) => {
+        const oldIndex = items.findIndex((item) => item._uniqueId === active.id);
+        const newIndex = items.findIndex((item) => item._uniqueId === over.id);
+        if (window.navigator?.vibrate) window.navigator.vibrate(25);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
   };
 
   const handleRemoveExercise = (index: number) => {
@@ -86,7 +202,7 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
 
   const handleAddExerciseFromPicker = (ex: ExerciseRecord) => {
     if (window.navigator?.vibrate) window.navigator.vibrate(35);
-    setSelectedExercises((prev) => [...prev, ex]);
+    setSelectedExercises((prev) => [...prev, { ...ex, _uniqueId: Math.random().toString(36).substring(2, 9) }]);
     setShowPickerModal(false);
     setSearchQuery('');
   };
@@ -304,140 +420,24 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
           </div>
 
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Use arrows to reorder
+            Drag handle to reorder
           </span>
         </div>
 
         {/* Selected Exercises Rows */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {selectedExercises.map((ex, index) => (
-            <div
-              key={`${ex.id}-${index}`}
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '16px',
-                padding: '8px 12px 8px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                minHeight: '68px',
-              }}
-            >
-              {/* Order Number & Exercise Details */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.85rem',
-                    fontWeight: 800,
-                    color: 'var(--accent-green)',
-                    background: 'var(--bg-surface-elevated)',
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {index + 1}
-                </span>
-
-                <div style={{ minWidth: 0, paddingRight: '8px' }}>
-                  <div
-                    style={{
-                      fontSize: '1.02rem',
-                      fontWeight: 700,
-                      color: 'var(--text-primary)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {ex.name}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    {ex.muscle_group}
-                  </div>
-                </div>
-              </div>
-
-              {/* Massive 56px Touch Target Controls (Up, Down, Remove) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                {/* Move Up Arrow Button */}
-                <button
-                  type="button"
-                  onClick={() => handleMoveUp(index)}
-                  disabled={index === 0}
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    color: index === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: index === 0 ? 'default' : 'pointer',
-                    opacity: index === 0 ? 0.35 : 1,
-                  }}
-                  title="Move exercise up"
-                  id={`btn-move-up-${index}`}
-                >
-                  <ArrowUp size={22} />
-                </button>
-
-                {/* Move Down Arrow Button */}
-                <button
-                  type="button"
-                  onClick={() => handleMoveDown(index)}
-                  disabled={index === selectedExercises.length - 1}
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    color: index === selectedExercises.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: index === selectedExercises.length - 1 ? 'default' : 'pointer',
-                    opacity: index === selectedExercises.length - 1 ? 0.35 : 1,
-                  }}
-                  title="Move exercise down"
-                  id={`btn-move-down-${index}`}
-                >
-                  <ArrowDown size={22} />
-                </button>
-
-                {/* Remove Exercise Button */}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveExercise(index)}
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(244, 63, 94, 0.25)',
-                    backgroundColor: 'rgba(244, 63, 94, 0.1)',
-                    color: 'var(--accent-rose)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}
-                  title="Remove exercise"
-                  id={`btn-remove-exercise-${index}`}
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
-            </div>
-          ))}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={selectedExercises.map(e => e._uniqueId)} strategy={verticalListSortingStrategy}>
+              {selectedExercises.map((ex, index) => (
+                <SortableExerciseRow
+                  key={ex._uniqueId}
+                  ex={ex}
+                  index={index}
+                  onRemove={() => handleRemoveExercise(index)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
 
           {selectedExercises.length === 0 && (
             <div

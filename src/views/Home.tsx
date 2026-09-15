@@ -49,7 +49,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       let totalVol = 0;
       for (const w of monthWorkouts) {
         const sets = await powersync.getAll<SetRecord>(
-          'SELECT weight, reps FROM sets WHERE workout_id = ?',
+          "SELECT weight, reps FROM sets WHERE workout_id = ? AND set_type != 'Warmup'",
           [w.id]
         );
         for (const s of sets) {
@@ -68,6 +68,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const handleDeleteSnippetItem = async (id: string) => {
     if (confirm('Delete this workout snippet?')) {
+      setSnippets((prev) => prev.filter(s => s.id !== id));
       await deleteSnippet(id);
       loadData();
     }

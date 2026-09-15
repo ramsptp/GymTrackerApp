@@ -47,7 +47,9 @@ export const HistoryView: React.FC = () => {
 
         let volume = 0;
         for (const s of sets) {
-          volume += s.weight * s.reps;
+          if (s.set_type !== 'Warmup') {
+            volume += s.weight * s.reps;
+          }
         }
 
         const start = new Date(w.start_time).getTime();
@@ -96,6 +98,7 @@ export const HistoryView: React.FC = () => {
   const handleDeleteWorkout = async (e: React.MouseEvent, workoutId: string) => {
     e.stopPropagation();
     if (confirm('Delete this workout from history?')) {
+      setHistory((prev) => prev.filter(item => item.workout.id !== workoutId));
       await powersync.writeTransaction(async (tx) => {
         await tx.execute('DELETE FROM sets WHERE workout_id = ?', [workoutId]);
         await tx.execute('DELETE FROM workouts WHERE id = ?', [workoutId]);

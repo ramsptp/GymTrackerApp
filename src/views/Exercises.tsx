@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Dumbbell, Check, X, Info, ChevronRight, Sparkles } from 'lucide-react';
+import { Search, Plus, Dumbbell, Check, X, Info, ChevronRight } from 'lucide-react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { powersync, createExercise, DEFAULT_USER_ID } from '../db/powersync';
 import type { ExerciseRecord } from '../db/schema';
 
@@ -18,7 +19,6 @@ export const ExercisesView: React.FC = () => {
   const [exercises, setExercises] = useState<ExerciseRecord[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [search, setSearch] = useState('');
-  const [displayLimit, setDisplayLimit] = useState(50);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseRecord | null>(null);
 
   // Custom exercise modal state
@@ -43,10 +43,7 @@ export const ExercisesView: React.FC = () => {
     loadExercises();
   }, []);
 
-  // Reset pagination when category or search changes
-  useEffect(() => {
-    setDisplayLimit(50);
-  }, [selectedCategory, search]);
+
 
   const handleCreateCustom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,9 +148,11 @@ export const ExercisesView: React.FC = () => {
     });
   }, [exercises, selectedCategory, search]);
 
-  const displayedExercises = useMemo(() => {
-    return filtered.slice(0, displayLimit);
-  }, [filtered, displayLimit]);
+  const rowVirtualizer = useWindowVirtualizer({
+    count: filtered.length,
+    estimateSize: () => 76, // 68px card + 8px gap
+    overscan: 10,
+  });
 
   // Parse secondary muscles safely
   const parseSecondaryMuscles = (jsonStr?: string | null): string[] => {
@@ -270,164 +269,155 @@ export const ExercisesView: React.FC = () => {
       {/* Exercise Count indicator */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-          Showing {displayedExercises.length} of {filtered.length} exercises
+          {filtered.length} exercises found
         </span>
       </div>
 
       {/* Exercise List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {displayedExercises.map((ex) => (
-          <div
-            key={ex.id}
-            onClick={() => setSelectedExercise(ex)}
-            style={{
-              minHeight: '68px',
-              padding: '12px 14px',
-              borderRadius: '14px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              transition: 'background 0.15s ease',
-            }}
-          >
-            {/* Left: 44x44 Thumbnail + Details */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-              {/* 44x44 Thumbnail with fallback */}
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const ex = filtered[virtualRow.index];
+          return (
+            <div
+              key={ex.id}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualRow.size}px`,
+                transform: `translateY(${virtualRow.start}px)`,
+                paddingBottom: '8px',
+              }}
+            >
               <div
+                onClick={() => setSelectedExercise(ex)}
                 style={{
-                  width: '44px',
-                  height: '44px',
-                  minWidth: '44px',
-                  borderRadius: '10px',
-                  overflow: 'hidden',
-                  background: '#1d222e',
+                  height: '100%',
+                  padding: '12px 14px',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease',
                 }}
               >
-                {ex.thumbnail_url ? (
-                  <img
-                    src={ex.thumbnail_url}
-                    alt={ex.name}
-                    loading="lazy"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={(e) => {
-                      // Fallback to icon on error
-                      (e.currentTarget as HTMLElement).style.display = 'none';
+                {/* Left: 44x44 Thumbnail + Details */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                  {/* 44x44 Thumbnail with fallback */}
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      minWidth: '44px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      background: '#1d222e',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(255,255,255,0.06)',
                     }}
-                  />
-                ) : (
-                  <Dumbbell size={20} color="var(--text-muted)" />
-                )}
-              </div>
+                  >
+                    {ex.thumbnail_url ? (
+                      <img
+                        src={ex.thumbnail_url}
+                        alt={ex.name}
+                        loading="lazy"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <Dumbbell size={20} color="var(--text-muted)" />
+                    )}
+                  </div>
 
-              {/* Title & Metadata Badges */}
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    fontSize: '0.96rem',
-                    color: 'var(--text-primary)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {ex.name}
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
-                  {/* Target Muscle Badge */}
-                  {ex.target_muscle && (
-                    <span
+                  {/* Title & Metadata Badges */}
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
                       style={{
-                        fontSize: '0.7rem',
-                        padding: '2px 7px',
-                        borderRadius: '6px',
-                        background: 'rgba(59, 130, 246, 0.15)',
-                        color: '#60a5fa',
                         fontWeight: 700,
-                        textTransform: 'capitalize',
+                        fontSize: '0.96rem',
+                        color: 'var(--text-primary)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
                     >
-                      {ex.target_muscle}
-                    </span>
-                  )}
+                      {ex.name}
+                    </div>
 
-                  {/* Equipment Badge */}
-                  {ex.equipment && (
-                    <span
-                      style={{
-                        fontSize: '0.7rem',
-                        padding: '2px 7px',
-                        borderRadius: '6px',
-                        background: 'var(--bg-surface-elevated)',
-                        color: 'var(--text-muted)',
-                        fontWeight: 600,
-                        textTransform: 'capitalize',
-                      }}
-                    >
-                      {ex.equipment}
-                    </span>
-                  )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                      {ex.target_muscle && (
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            padding: '2px 7px',
+                            borderRadius: '6px',
+                            background: 'rgba(59, 130, 246, 0.15)',
+                            color: '#60a5fa',
+                            fontWeight: 700,
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {ex.target_muscle}
+                        </span>
+                      )}
 
-                  {/* Custom Indicator */}
-                  {ex.is_custom === 1 && (
-                    <span
-                      style={{
-                        fontSize: '0.68rem',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        color: '#34d399',
-                        fontWeight: 800,
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      Custom
-                    </span>
-                  )}
+                      {ex.equipment && (
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            padding: '2px 7px',
+                            borderRadius: '6px',
+                            background: 'var(--bg-surface-elevated)',
+                            color: 'var(--text-muted)',
+                            fontWeight: 600,
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {ex.equipment}
+                        </span>
+                      )}
+
+                      {ex.is_custom === 1 && (
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#34d399',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Custom
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Chevron */}
+                <div style={{ paddingLeft: '8px', color: 'var(--text-muted)' }}>
+                  <ChevronRight size={18} />
                 </div>
               </div>
             </div>
-
-            {/* Right: Chevron */}
-            <div style={{ paddingLeft: '8px', color: 'var(--text-muted)' }}>
-              <ChevronRight size={18} />
-            </div>
-          </div>
-        ))}
-
-        {/* Load More Button */}
-        {filtered.length > displayLimit && (
-          <button
-            onClick={() => setDisplayLimit((prev) => prev + 50)}
-            style={{
-              minHeight: '48px',
-              marginTop: '8px',
-              padding: '12px',
-              borderRadius: '12px',
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-primary)',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-            }}
-          >
-            <Sparkles size={16} color="var(--accent-blue)" />
-            Load More Exercises ({filtered.length - displayLimit} remaining)
-          </button>
-        )}
+          );
+        })}
 
         {filtered.length === 0 && (
           <div

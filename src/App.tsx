@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, Layers, History, Play, User } from 'lucide-react';
+import { Dumbbell, Layers, History, Play, User, ChevronDown } from 'lucide-react';
 import { initDatabase, startWorkout } from './db/powersync';
 import type { SnippetRecord } from './db/schema';
 import { ActiveWorkout } from './components/ActiveWorkout';
@@ -21,6 +21,7 @@ export const App: React.FC = () => {
     snippetName?: string;
   } | null>(null);
 
+  const [isWorkoutExpanded, setIsWorkoutExpanded] = useState(false);
   const [isDbReady, setIsDbReady] = useState(false);
 
   // Sync state with browser navigation (popstate)
@@ -60,7 +61,7 @@ export const App: React.FC = () => {
       snippetId: snippet.id,
       snippetName: snippet.name,
     });
-    navigate('/');
+    setIsWorkoutExpanded(true);
   };
 
   const handleStartFreestyleWorkout = async () => {
@@ -69,7 +70,7 @@ export const App: React.FC = () => {
       workoutId,
       snippetName: 'Freestyle Workout',
     });
-    navigate('/');
+    setIsWorkoutExpanded(true);
   };
 
   const handleFinishActiveWorkout = () => {
@@ -136,9 +137,28 @@ export const App: React.FC = () => {
           />
         ) : (
           <>
-            {/* Active Workout Session (Remains mounted to preserve timer state & logs) */}
+            {/* Active Workout Session Overlay */}
             {activeWorkout && (
-              <div style={{ display: currentPath === '/' ? 'block' : 'none' }}>
+              <div
+                style={{
+                  display: isWorkoutExpanded ? 'block' : 'none',
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'var(--bg-primary)',
+                  zIndex: 100,
+                  overflowY: 'auto',
+                  padding: '16px',
+                  paddingTop: 'env(safe-area-inset-top, 16px)'
+                }}
+              >
+                <div style={{ paddingBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                  <button onClick={() => setIsWorkoutExpanded(false)} style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '20px', padding: '6px 20px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                    <ChevronDown size={20} /> Minimize Workout
+                  </button>
+                </div>
                 <ActiveWorkout
                   workoutId={activeWorkout.workoutId}
                   snippetId={activeWorkout.snippetId}
@@ -149,8 +169,8 @@ export const App: React.FC = () => {
               </div>
             )}
 
-            {/* Home / Snippets View (Shown on '/' when no workout active) */}
-            {!activeWorkout && currentPath === '/' && (
+            {/* Home / Snippets View */}
+            {currentPath === '/' && (
               <HomeView
                 onStartSnippetWorkout={handleStartSnippetWorkout}
                 onStartFreestyleWorkout={handleStartFreestyleWorkout}
@@ -179,10 +199,10 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Persistent Active Workout Mini-Banner (when navigating away to exercises/history/account) */}
-      {!isSnippetBuilder && activeWorkout && currentPath !== '/' && (
+      {/* Persistent Active Workout Mini-Banner */}
+      {!isSnippetBuilder && activeWorkout && !isWorkoutExpanded && (
         <div
-          onClick={() => navigate('/')}
+          onClick={() => setIsWorkoutExpanded(true)}
           style={{
             position: 'fixed',
             bottom: '84px',
@@ -219,7 +239,7 @@ export const App: React.FC = () => {
             style={{ minHeight: '38px', height: '38px', padding: '0 14px', fontSize: '0.82rem', fontWeight: 800 }}
             onClick={(e) => {
               e.stopPropagation();
-              navigate('/');
+              setIsWorkoutExpanded(true);
             }}
           >
             <Play size={14} fill="white" /> Resume
