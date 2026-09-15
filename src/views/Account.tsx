@@ -142,14 +142,13 @@ export const AccountView: React.FC = () => {
                   width: '56px',
                   height: '56px',
                   borderRadius: '16px',
-                  background: 'linear-gradient(135deg, #10b981, #3b82f6)',
+                  backgroundColor: 'var(--accent-blue)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: 'white',
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: '1.4rem',
-                  boxShadow: '0 4px 16px var(--accent-green-glow)',
                   flexShrink: 0,
                 }}
               >
@@ -169,7 +168,7 @@ export const AccountView: React.FC = () => {
             </div>
 
             <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>USER ID (UUID)</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>User ID (UUID)</div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px', wordBreak: 'break-all' }}>
                 {user.id}
               </div>
@@ -183,14 +182,14 @@ export const AccountView: React.FC = () => {
             className="btn"
             id="btn-sign-out"
             style={{
-              height: '56px',
-              minHeight: '56px',
+              height: '52px',
+              minHeight: '52px',
               width: '100%',
-              backgroundColor: 'rgba(244, 63, 94, 0.08)',
-              border: '1.5px solid var(--accent-rose)',
+              backgroundColor: 'transparent',
+              border: '1px solid var(--border-subtle)',
               color: 'var(--accent-rose)',
               fontSize: '1rem',
-              fontWeight: 800,
+              fontWeight: 600,
               gap: '10px',
             }}
           >
@@ -249,12 +248,12 @@ export const AccountView: React.FC = () => {
             {/* Status Metrics Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
               <div style={{ background: 'var(--bg-surface-elevated)', padding: '12px', borderRadius: '10px' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>SYNC CONNECTED</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Sync Connected</div>
                 <div
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: '1rem',
-                    fontWeight: 800,
+                    fontWeight: 600,
                     marginTop: '2px',
                     color: status?.connected ? 'var(--accent-green)' : 'var(--accent-amber)',
                   }}
@@ -264,12 +263,12 @@ export const AccountView: React.FC = () => {
               </div>
 
               <div style={{ background: 'var(--bg-surface-elevated)', padding: '12px', borderRadius: '10px' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>UPLOAD QUEUE</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Upload Queue</div>
                 <div
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: '1rem',
-                    fontWeight: 800,
+                    fontWeight: 600,
                     marginTop: '2px',
                     color: status?.uploading ? 'var(--accent-blue)' : 'var(--text-primary)',
                   }}
@@ -282,8 +281,8 @@ export const AccountView: React.FC = () => {
             {/* Clusters & Engines */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  SUPABASE POSTGRES CLUSTER
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Supabase Postgres Cluster
                 </label>
                 <div
                   style={{
@@ -302,8 +301,8 @@ export const AccountView: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  POWERSYNC SYNC SERVICE
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  PowerSync Sync Service
                 </label>
                 <div
                   style={{
@@ -322,8 +321,8 @@ export const AccountView: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  OFFLINE LOCAL ENGINE
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Offline Local Engine
                 </label>
                 <div
                   style={{
@@ -365,7 +364,7 @@ export const AccountView: React.FC = () => {
                 <UserIcon size={22} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   Sign In / Register
                 </h3>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
@@ -420,9 +419,9 @@ export const AccountView: React.FC = () => {
               <div>
                 <label
                   htmlFor="auth-email"
-                  style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}
+                  style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}
                 >
-                  EMAIL ADDRESS
+                  Email Address
                 </label>
                 <input
                   id="auth-email"
@@ -434,7 +433,7 @@ export const AccountView: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
                     width: '100%',
-                    height: '56px',
+                    height: '52px',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-subtle)',
                     backgroundColor: 'var(--bg-surface-elevated)',
@@ -452,9 +451,9 @@ export const AccountView: React.FC = () => {
               <div>
                 <label
                   htmlFor="auth-password"
-                  style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}
+                  style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}
                 >
-                  PASSWORD
+                  Password
                 </label>
                 <input
                   id="auth-password"
@@ -466,7 +465,7 @@ export const AccountView: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   style={{
                     width: '100%',
-                    height: '56px',
+                    height: '52px',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-subtle)',
                     backgroundColor: 'var(--bg-surface-elevated)',
@@ -488,11 +487,11 @@ export const AccountView: React.FC = () => {
                   className="btn btn-primary"
                   id="btn-login"
                   style={{
-                    height: '56px',
-                    minHeight: '56px',
+                    height: '52px',
+                    minHeight: '52px',
                     width: '100%',
-                    fontSize: '1.05rem',
-                    fontWeight: 800,
+                    fontSize: '1rem',
+                    fontWeight: 600,
                   }}
                 >
                   <LogIn size={20} />
@@ -506,14 +505,14 @@ export const AccountView: React.FC = () => {
                   className="btn"
                   id="btn-signup"
                   style={{
-                    height: '56px',
-                    minHeight: '56px',
+                    height: '52px',
+                    minHeight: '52px',
                     width: '100%',
                     backgroundColor: 'transparent',
-                    border: '1.5px solid var(--accent-green)',
-                    color: 'var(--accent-green)',
-                    fontSize: '1.05rem',
-                    fontWeight: 800,
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--accent-blue)',
+                    fontSize: '1rem',
+                    fontWeight: 600,
                   }}
                 >
                   <UserPlus size={20} />

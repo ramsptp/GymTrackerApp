@@ -98,20 +98,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div className="status-dot synced" />
-          <span style={{ fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-green)' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-green)' }}>
             {weeklyCount} {weeklyCount === 1 ? 'Workout' : 'Workouts'} This Week
           </span>
         </div>
         <span
           style={{
-            fontSize: '0.68rem',
-            fontWeight: 800,
-            textTransform: 'uppercase',
+            fontSize: '0.75rem',
+            fontWeight: 600,
             backgroundColor: 'var(--bg-surface-elevated)',
             color: 'var(--text-secondary)',
-            padding: '4px 8px',
-            borderRadius: '6px',
-            letterSpacing: '0.05em',
+            padding: '4px 10px',
+            borderRadius: '12px',
           }}
         >
           {weeklyCount > 0 ? 'On Track' : 'Ready'}
@@ -123,10 +121,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         style={{
           width: '100%',
           backgroundColor: 'var(--bg-surface)',
-          borderRadius: '20px',
-          padding: '20px',
+          borderRadius: '16px',
+          padding: '24px 20px',
           border: '1px solid var(--border-subtle)',
-          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
           display: 'flex',
           flexDirection: 'column',
           gap: '16px',
@@ -134,10 +131,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 600, color: 'var(--text-primary)' }}>
               Ready to Train?
             </h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
               Start an unscripted session or jump straight into a routine.
             </p>
           </div>
@@ -151,7 +148,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Primary Action: Start Empty Workout */}
           <button
             className="btn btn-primary btn-lg"
-            style={{ minHeight: '56px', height: '56px', fontSize: '1rem', fontWeight: 800, letterSpacing: '0.03em', textTransform: 'uppercase' }}
+            style={{ minHeight: '52px', height: '52px', fontSize: '1rem', fontWeight: 600 }}
             onClick={onStartFreestyleWorkout}
             id="btn-empty-workout"
           >
@@ -162,7 +159,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Secondary Routine Action: Strictly "Browse Snippets" */}
           <button
             className="btn btn-secondary btn-lg"
-            style={{ minHeight: '56px', height: '56px', fontSize: '1rem', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase' }}
+            style={{ minHeight: '52px', height: '52px', fontSize: '1rem', fontWeight: 500 }}
             onClick={handleScrollToSnippets}
             id="btn-browse-snippets"
           >
@@ -186,11 +183,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
             Monthly Output
           </span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '2px' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.3rem', fontWeight: 600, color: 'var(--text-primary)' }}>
               {monthlySessions}
             </span>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>sessions</span>
@@ -200,11 +197,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div style={{ width: '1px', height: '36px', backgroundColor: 'var(--border-subtle)' }} />
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
             Volume Load
           </span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '2px' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--accent-green)' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.3rem', fontWeight: 600, color: 'var(--accent-green)' }}>
               {monthlyVolume.toLocaleString()}
             </span>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>kg</span>
@@ -216,10 +213,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div id="my-snippets-section" style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-primary)' }}>
               My Snippets
             </h3>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-surface-elevated)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: '6px' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, background: 'var(--bg-surface-elevated)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: '10px' }}>
               {snippets.length}
             </span>
           </div>
@@ -234,17 +231,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              color: 'var(--accent-green)',
-              fontSize: '0.82rem',
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: 'none',
+              color: 'var(--accent-blue)',
+              fontSize: '0.85rem',
+              fontWeight: 500,
               cursor: 'pointer',
-              padding: '8px 14px',
-              borderRadius: '10px',
-              minHeight: '44px',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              minHeight: '36px',
             }}
             id="btn-new-snippet-header"
           >
@@ -271,7 +266,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               }}
             >
               <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
-                <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <h4 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {snippet.name}
                 </h4>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
@@ -389,7 +384,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 {/* 1-Tap Start Workout */}
                 <button
                   className="btn btn-primary"
-                  style={{ minHeight: '48px', height: '48px', padding: '0 16px', fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' }}
+                  style={{ minHeight: '44px', height: '44px', padding: '0 16px', fontSize: '0.9rem', fontWeight: 600, borderRadius: '12px' }}
                   onClick={() => onStartSnippetWorkout(snippet)}
                   id={`btn-start-snippet-${snippet.id}`}
                 >

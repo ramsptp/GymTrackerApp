@@ -232,14 +232,14 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       {/* Active Workout Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-green)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-green)' }}>
             ● Live Session
           </span>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>{snippetName}</h1>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 600 }}>{snippetName}</h1>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-surface-elevated)', padding: '8px 14px', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-          <Clock size={16} color="#60a5fa" />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 700, color: '#60a5fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', padding: '6px 0' }}>
+          <Clock size={16} color="var(--text-secondary)" />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
             {formatElapsed(elapsedSeconds)}
           </span>
         </div>
@@ -250,7 +250,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         <div key={item.exercise.id + exIdx} className="exercise-card">
           <div className="exercise-header">
             <div>
-              <h3 className="exercise-title">{item.exercise.name}</h3>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)' }}>{item.exercise.name}</h3>
               <span className="exercise-tag">{item.exercise.muscle_group}</span>
             </div>
             <button
@@ -398,7 +398,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
           <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '14px' }}>Select Exercise</h2>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '14px' }}>Select Exercise</h2>
 
             <input
               type="text"
@@ -464,7 +464,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                       )}
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.92rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.92rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ex.name}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
@@ -503,33 +503,33 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         <div className="modal-backdrop">
           <div className="modal-sheet" style={{ textAlign: 'center' }}>
             <div className="sheet-handle" />
-            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #059669)', margin: '0 auto 16px auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Award size={36} color="#fff" />
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'var(--accent-green)', margin: '0 auto 16px auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Award size={36} color="#000" />
             </div>
 
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '6px' }}>Workout Completed!</h2>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 600, marginBottom: '6px' }}>Workout Completed!</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '24px' }}>
               Saved to local SQLite database and queued for Supabase.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '28px' }}>
               <div style={{ background: 'var(--bg-surface-elevated)', padding: '14px', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>DURATION</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 800, marginTop: '4px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Duration</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 600, marginTop: '4px' }}>
                   {summaryStats.duration}
                 </div>
               </div>
 
               <div style={{ background: 'var(--bg-surface-elevated)', padding: '14px', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>VOLUME</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 800, marginTop: '4px', color: '#10b981' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Volume</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 600, marginTop: '4px', color: 'var(--accent-green)' }}>
                   {summaryStats.volume} kg
                 </div>
               </div>
 
               <div style={{ background: 'var(--bg-surface-elevated)', padding: '14px', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>SETS</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 800, marginTop: '4px', color: '#60a5fa' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Sets</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 600, marginTop: '4px', color: 'var(--accent-blue)' }}>
                   {summaryStats.sets}
                 </div>
               </div>

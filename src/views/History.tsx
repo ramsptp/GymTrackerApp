@@ -111,10 +111,10 @@ export const HistoryView: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Header */}
       <div>
-        <span className="font-label-micro text-label-micro uppercase text-secondary tracking-widest font-bold">
+        <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
           Chronological Logs
         </span>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
           Workout History
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: '2px' }}>
@@ -142,7 +142,7 @@ export const HistoryView: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Calendar size={14} color="var(--text-muted)" />
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-blue)', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                     {formatDate(item.workout.start_time)} • {formatTime(item.workout.start_time)}
                   </span>
                 </div>
@@ -160,32 +160,32 @@ export const HistoryView: React.FC = () => {
               </div>
 
               {/* Snippet Name Title */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <Layers size={18} color="var(--accent-green)" />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <Layers size={18} color="var(--text-primary)" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {item.snippetName}
                 </h3>
               </div>
 
               {/* Telemetry Metrics Row (56px touch target friendly) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                <div style={{ background: 'var(--bg-surface-elevated)', padding: '10px 12px', borderRadius: '10px', minHeight: '56px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>DURATION</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <div style={{ background: 'var(--bg-surface-elevated)', padding: '12px 14px', borderRadius: '12px', minHeight: '52px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Duration</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
                     {item.durationMinutes}m
                   </div>
                 </div>
 
-                <div style={{ background: 'var(--bg-surface-elevated)', padding: '10px 12px', borderRadius: '10px', minHeight: '56px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>TOTAL VOLUME</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-green)' }}>
+                <div style={{ background: 'var(--bg-surface-elevated)', padding: '12px 14px', borderRadius: '12px', minHeight: '52px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Total Volume</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
                     {item.totalVolume.toLocaleString()} kg
                   </div>
                 </div>
 
-                <div style={{ background: 'var(--bg-surface-elevated)', padding: '10px 12px', borderRadius: '10px', minHeight: '56px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>SETS LOGGED</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 800, color: '#60a5fa' }}>
+                <div style={{ background: 'var(--bg-surface-elevated)', padding: '12px 14px', borderRadius: '12px', minHeight: '52px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Sets Logged</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
                     {item.totalSets}
                   </div>
                 </div>
@@ -194,7 +194,7 @@ export const HistoryView: React.FC = () => {
               {/* Expanded Breakdown */}
               {isExpanded && (
                 <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '10px' }}>
                     Detailed Sets Breakdown
                   </div>
 
@@ -213,16 +213,16 @@ export const HistoryView: React.FC = () => {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                             {s.exercise_name || 'Exercise'}
                           </span>
                           <span
                             style={{
-                              fontSize: '0.7rem',
-                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              fontWeight: 500,
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              background: s.set_type === 'Warmup' ? 'rgba(245, 158, 11, 0.15)' : s.set_type === 'Drop' ? 'rgba(139, 92, 246, 0.15)' : s.set_type === 'Failure' ? 'rgba(244, 63, 94, 0.15)' : 'var(--bg-primary)',
+                              background: s.set_type === 'Warmup' ? 'rgba(245, 158, 11, 0.15)' : s.set_type === 'Drop' ? 'rgba(139, 92, 246, 0.15)' : s.set_type === 'Failure' ? 'rgba(244, 63, 94, 0.15)' : 'transparent',
                               color: s.set_type === 'Warmup' ? 'var(--accent-amber)' : s.set_type === 'Drop' ? 'var(--accent-purple)' : s.set_type === 'Failure' ? 'var(--accent-rose)' : 'var(--text-muted)',
                             }}
                           >
@@ -230,7 +230,7 @@ export const HistoryView: React.FC = () => {
                           </span>
                         </div>
 
-                        <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
                           {s.weight} kg × {s.reps} reps
                         </div>
                       </div>

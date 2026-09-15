@@ -155,7 +155,7 @@ export const App: React.FC = () => {
                 }}
               >
                 <div style={{ paddingBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-                  <button onClick={() => setIsWorkoutExpanded(false)} style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '20px', padding: '6px 20px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                  <button onClick={() => setIsWorkoutExpanded(false)} style={{ background: 'transparent', border: 'none', padding: '12px 24px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer' }}>
                     <ChevronDown size={20} /> Minimize Workout
                   </button>
                 </div>
@@ -205,30 +205,30 @@ export const App: React.FC = () => {
           onClick={() => setIsWorkoutExpanded(true)}
           style={{
             position: 'fixed',
-            bottom: '84px',
+            bottom: '96px',
             left: '50%',
             transform: 'translateX(-50%)',
             width: 'calc(100% - 32px)',
             maxWidth: '488px',
             backgroundColor: 'var(--bg-surface-elevated)',
-            border: '1px solid var(--accent-green)',
-            borderRadius: '14px',
-            padding: '12px 18px',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '16px',
+            padding: '14px 18px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
             cursor: 'pointer',
             zIndex: 48,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="status-dot synced" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-green)' }} />
             <div>
-              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--accent-green)', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-green)' }}>
                 Workout in Progress
               </div>
-              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                 {activeWorkout.snippetName}
               </div>
             </div>
@@ -236,7 +236,7 @@ export const App: React.FC = () => {
 
           <button
             className="btn btn-primary"
-            style={{ minHeight: '38px', height: '38px', padding: '0 14px', fontSize: '0.82rem', fontWeight: 800 }}
+            style={{ minHeight: '40px', height: '40px', padding: '0 16px', fontSize: '0.9rem', borderRadius: '20px' }}
             onClick={(e) => {
               e.stopPropagation();
               setIsWorkoutExpanded(true);

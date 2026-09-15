@@ -170,10 +170,10 @@ export const ExercisesView: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <span className="font-label-micro text-label-micro uppercase text-secondary tracking-widest font-bold">
+          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
             GymVisual Catalog
           </span>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
             Exercises
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: '2px' }}>
@@ -367,7 +367,7 @@ export const ExercisesView: React.FC = () => {
                             borderRadius: '6px',
                             background: 'rgba(59, 130, 246, 0.15)',
                             color: '#60a5fa',
-                            fontWeight: 700,
+                            fontWeight: 600,
                             textTransform: 'capitalize',
                           }}
                         >
@@ -382,8 +382,8 @@ export const ExercisesView: React.FC = () => {
                             padding: '2px 7px',
                             borderRadius: '6px',
                             background: 'var(--bg-surface-elevated)',
-                            color: 'var(--text-muted)',
-                            fontWeight: 600,
+                            color: 'var(--text-secondary)',
+                            fontWeight: 500,
                             textTransform: 'capitalize',
                           }}
                         >
@@ -398,9 +398,8 @@ export const ExercisesView: React.FC = () => {
                             padding: '2px 6px',
                             borderRadius: '4px',
                             background: 'rgba(16, 185, 129, 0.15)',
-                            color: '#34d399',
-                            fontWeight: 800,
-                            textTransform: 'uppercase',
+                            color: 'var(--accent-green)',
+                            fontWeight: 600,
                           }}
                         >
                           Custom
@@ -453,16 +452,14 @@ export const ExercisesView: React.FC = () => {
               <div>
                 <span
                   style={{
-                    fontSize: '0.72rem',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: '#60a5fa',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    color: 'var(--accent-blue)',
                   }}
                 >
                   {selectedExercise.body_part || selectedExercise.muscle_group || 'Exercise Detail'}
                 </span>
-                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
                   {selectedExercise.name}
                 </h2>
               </div>
@@ -637,19 +634,19 @@ export const ExercisesView: React.FC = () => {
         <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
           <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
-            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '16px' }}>+ New Custom Exercise</h2>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '16px' }}>+ New Custom Exercise</h2>
 
             <form onSubmit={handleCreateCustom}>
               <label
                 style={{
                   display: 'block',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
                   color: 'var(--text-secondary)',
                   marginBottom: '6px',
                 }}
               >
-                EXERCISE NAME
+                Exercise Name
               </label>
               <input
                 type="text"
@@ -673,16 +670,16 @@ export const ExercisesView: React.FC = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      color: 'var(--text-secondary)',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    TARGET GROUP
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.8rem',
+                        fontWeight: 500,
+                        color: 'var(--text-secondary)',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Target Group
                   </label>
                   <select
                     value={customGroup}
@@ -708,16 +705,16 @@ export const ExercisesView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      color: 'var(--text-secondary)',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    EQUIPMENT
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.8rem',
+                        fontWeight: 500,
+                        color: 'var(--text-secondary)',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Equipment
                   </label>
                   <select
                     value={customEquipment}
@@ -748,13 +745,13 @@ export const ExercisesView: React.FC = () => {
               <label
                 style={{
                   display: 'block',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  color: 'var(--text-secondary)',
-                  marginBottom: '6px',
-                }}
-              >
-                OPTIONAL NOTES / FORM CUES
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                marginBottom: '6px',
+              }}
+            >
+              Optional Notes / Form Cues
               </label>
               <textarea
                 placeholder="Keep elbows tucked, pause at bottom..."

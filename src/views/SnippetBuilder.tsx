@@ -88,7 +88,7 @@ const SortableExerciseRow = ({
           <div
             style={{
               fontSize: '1.02rem',
-              fontWeight: 700,
+              fontWeight: 600,
               color: 'var(--text-primary)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -112,8 +112,8 @@ const SortableExerciseRow = ({
             width: '56px',
             height: '56px',
             borderRadius: '12px',
-            border: '1px solid rgba(244, 63, 94, 0.25)',
-            backgroundColor: 'rgba(244, 63, 94, 0.1)',
+            border: 'none',
+            backgroundColor: 'var(--bg-surface-elevated)',
             color: 'var(--accent-rose)',
             display: 'flex',
             alignItems: 'center',
@@ -311,9 +311,8 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
         <span
           style={{
             fontSize: '1.1rem',
-            fontWeight: 800,
+            fontWeight: 600,
             letterSpacing: '-0.02em',
-            textTransform: 'uppercase',
             color: 'var(--text-primary)',
           }}
         >
@@ -328,15 +327,14 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
             background: 'none',
             border: 'none',
             color: saving || !snippetName.trim() ? 'var(--text-muted)' : 'var(--accent-green)',
-            fontSize: '1.05rem',
-            fontWeight: 800,
+            fontSize: '1rem',
+            fontWeight: 600,
             cursor: saving || !snippetName.trim() ? 'not-allowed' : 'pointer',
             minHeight: '56px',
             padding: '0 12px',
             display: 'flex',
             alignItems: 'center',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
+            letterSpacing: '0.02em',
           }}
           id="btn-snippet-save"
         >
@@ -349,11 +347,9 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
         <label
           style={{
             display: 'block',
-            fontSize: '0.72rem',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            color: 'var(--accent-green)',
+            fontSize: '0.8rem',
+            fontWeight: 500,
+            color: 'var(--text-secondary)',
             marginBottom: '6px',
           }}
         >
@@ -396,11 +392,9 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
               style={{
-                fontSize: '0.85rem',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                color: 'var(--text-secondary)',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
               }}
             >
               Exercises in Routine
@@ -408,11 +402,11 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
             <span
               style={{
                 fontSize: '0.75rem',
-                fontWeight: 800,
+                fontWeight: 600,
                 background: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
+                color: 'var(--text-secondary)',
                 padding: '2px 8px',
-                borderRadius: '999px',
+                borderRadius: '10px',
               }}
             >
               {selectedExercises.length}
@@ -465,16 +459,16 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
           onClick={() => setShowPickerModal(true)}
           className="btn btn-secondary btn-lg"
           style={{
-            minHeight: '56px',
-            height: '56px',
+            minHeight: '52px',
+            height: '52px',
             marginTop: '16px',
-            border: '1px dashed var(--accent-green)',
-            color: 'var(--accent-green)',
-            fontSize: '1.05rem',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
+            border: 'none',
+            color: 'var(--accent-blue)',
+            backgroundColor: 'var(--bg-surface-elevated)',
+            fontSize: '1rem',
+            fontWeight: 600,
             gap: '8px',
+            borderRadius: '12px',
           }}
           id="btn-snippet-add-exercise"
         >
@@ -503,10 +497,10 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
               }}
             >
               <div>
-                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   Add Exercise
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   Tap to add to your workout snippet
                 </p>
               </div>
@@ -606,26 +600,25 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
                       marginBottom: '8px',
                     }}
                   >
-                    <div style={{ width: '4px', height: '14px', background: 'var(--accent-green)', borderRadius: '2px' }} />
+                    <div style={{ width: '4px', height: '14px', background: 'var(--text-primary)', borderRadius: '2px' }} />
                     <span
                       style={{
-                        fontSize: '0.85rem',
-                        fontWeight: 800,
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
                         color: 'var(--text-primary)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
+                        letterSpacing: '0.02em',
                       }}
                     >
                       {muscle}
                     </span>
                     <span
                       style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        color: 'var(--text-muted)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
                         background: 'var(--bg-surface-elevated)',
-                        padding: '1px 6px',
-                        borderRadius: '999px',
+                        padding: '1px 8px',
+                        borderRadius: '10px',
                       }}
                     >
                       {groupedCatalog[muscle].length}
@@ -679,7 +672,7 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
                             )}
                           </div>
                           <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.94rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.94rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {ex.name}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
