@@ -9,6 +9,9 @@ import { HistoryView } from './views/History';
 import { SnippetBuilderView } from './views/SnippetBuilder';
 import { ProfileView } from './views/Profile';
 import { SyncStatusBadge } from './components/SyncStatusBadge';
+import { useAuth } from './context/AuthContext';
+import { useQuery } from '@powersync/react';
+import { LandingView } from './views/Landing';
 
 export const App: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>(() => {
@@ -23,6 +26,10 @@ export const App: React.FC = () => {
 
   const [isWorkoutExpanded, setIsWorkoutExpanded] = useState(false);
   const [isDbReady, setIsDbReady] = useState(false);
+
+  const { user, loading } = useAuth();
+  const { data: profileData, isLoading: isProfileLoading } = useQuery('SELECT username FROM profiles WHERE id = ?', [user?.id || '']);
+  const profileUsername = profileData?.[0]?.username || null;
 
   // Sync state with browser navigation (popstate)
   useEffect(() => {
@@ -93,7 +100,9 @@ export const App: React.FC = () => {
     }
   }
 
-  if (!isDbReady) {
+  const isHydratingProfile = user && isProfileLoading;
+
+  if (loading || !isDbReady || isHydratingProfile) {
     return (
       <div className="app-container" style={{ justifyContent: 'center', alignItems: 'center' }}>
         <div style={{ textAlign: 'center' }}>
@@ -102,9 +111,18 @@ export const App: React.FC = () => {
           </div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Gym Tracker</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '6px' }}>
-            Booting local browser SQLite engine...
+            {loading ? 'Authenticating...' : 'Booting local browser SQLite engine...'}
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // Force users to authenticate and set username before accessing the app
+  if (!user || (user && !profileUsername)) {
+    return (
+      <div className="app-container">
+        <LandingView profileUsername={profileUsername} />
       </div>
     );
   }

@@ -54,13 +54,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isMounted) return;
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
-      setLoading(false);
 
       if (initialSession?.user?.id) {
         await migrateGuestDataToUser(initialSession.user.id);
         await fetchAndSyncProfile(initialSession.user.id);
         await connectSync();
       }
+      
+      if (isMounted) setLoading(false);
     }).catch((err) => {
       console.warn('Error fetching Supabase session on mount:', err);
       if (isMounted) setLoading(false);
@@ -69,9 +70,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen to real-time auth events (sign in, sign out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (!isMounted) return;
+
+      if (event === 'SIGNED_IN') {
+        setLoading(true);
+      }
+
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
-      setLoading(false);
 
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && currentSession?.user?.id) {
         // Atomically reassign offline/guest records to newly authenticated user before sync connects
@@ -80,6 +85,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await connectSync();
       } else if (event === 'SIGNED_OUT') {
         await disconnectAndClearData();
+      }
+
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        if (isMounted) setLoading(false);
       }
     });
 
