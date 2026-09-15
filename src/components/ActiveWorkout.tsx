@@ -6,6 +6,7 @@ import { RestTimerBar } from './RestTimerBar';
 
 interface ActiveWorkoutProps {
   workoutId: string;
+  snippetId?: string;
   snippetName?: string;
   onFinish: () => void;
   onCancel: () => void;
@@ -25,6 +26,7 @@ interface ActiveExerciseItem {
 
 export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   workoutId,
+  snippetId,
   snippetName = 'Active Workout',
   onFinish,
   onCancel,
@@ -46,14 +48,37 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Load catalog exercises from local SQLite
+  // Load catalog exercises and snippet exercises from local SQLite
   useEffect(() => {
     const loadExercises = async () => {
       try {
         const rows = await powersync.getAll<ExerciseRecord>('SELECT * FROM exercises ORDER BY name ASC');
         setAllCatalogExercises(rows);
 
-        // Pre-populate with first 2-3 exercises if workout has no exercises yet
+        if (snippetId) {
+          const snippetExercises = await powersync.getAll<ExerciseRecord>(
+            `SELECT e.* FROM snippet_exercises se
+             JOIN exercises e ON se.exercise_id = e.id
+             WHERE se.snippet_id = ?
+             ORDER BY se.sort_order ASC`,
+            [snippetId]
+          );
+
+          if (snippetExercises.length > 0) {
+            const defaults = snippetExercises.map((ex) => ({
+              exercise: ex,
+              sets: [
+                { setNumber: 1, weight: 60, reps: 10, setType: 'Normal' as SetType, isLogged: false },
+                { setNumber: 2, weight: 60, reps: 10, setType: 'Normal' as SetType, isLogged: false },
+                { setNumber: 3, weight: 60, reps: 10, setType: 'Normal' as SetType, isLogged: false },
+              ],
+            }));
+            setExercises(defaults);
+            return;
+          }
+        }
+
+        // Pre-populate with first 2 exercises only if freestyle and empty
         if (rows.length > 0 && exercises.length === 0) {
           const defaults = rows.slice(0, 2).map((ex) => ({
             exercise: ex,
@@ -70,7 +95,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       }
     };
     loadExercises();
-  }, []);
+  }, [snippetId]);
 
   const formatElapsed = (sec: number) => {
     const hrs = Math.floor(sec / 3600);

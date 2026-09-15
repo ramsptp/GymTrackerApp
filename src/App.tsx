@@ -1,22 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, Layers, History } from 'lucide-react';
+import { Dumbbell, Layers, History, Play } from 'lucide-react';
 import { initDatabase, startWorkout } from './db/powersync';
 import type { SnippetRecord } from './db/schema';
 import { ActiveWorkout } from './components/ActiveWorkout';
-import { SnippetManager } from './components/SnippetManager';
-import { ExerciseCatalog } from './components/ExerciseCatalog';
-import { WorkoutHistory } from './components/WorkoutHistory';
+import { HomeView } from './views/Home';
+import { ExercisesView } from './views/Exercises';
+import { HistoryView } from './views/History';
+import { SnippetBuilderView } from './views/SnippetBuilder';
 import { SyncStatusBadge } from './components/SyncStatusBadge';
 
-type Tab = 'snippets' | 'exercises' | 'history';
-
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('snippets');
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    return window.location.pathname || '/';
+  });
+
   const [activeWorkout, setActiveWorkout] = useState<{
     workoutId: string;
+    snippetId?: string;
     snippetName?: string;
   } | null>(null);
+
   const [isDbReady, setIsDbReady] = useState(false);
+
+  // Sync state with browser navigation (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname || '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Navigate function updating browser history & state without full reload
+  const navigate = (path: string) => {
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setCurrentPath(path);
+  };
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -25,7 +46,7 @@ export const App: React.FC = () => {
         setIsDbReady(true);
       } catch (err) {
         console.error('Failed to initialize PowerSync SQLite database:', err);
-        setIsDbReady(true); // Proceed to allow UI to show error/state
+        setIsDbReady(true);
       }
     };
     bootstrap();
@@ -35,8 +56,10 @@ export const App: React.FC = () => {
     const workoutId = await startWorkout(snippet.id);
     setActiveWorkout({
       workoutId,
+      snippetId: snippet.id,
       snippetName: snippet.name,
     });
+    navigate('/');
   };
 
   const handleStartFreestyleWorkout = async () => {
@@ -45,16 +68,28 @@ export const App: React.FC = () => {
       workoutId,
       snippetName: 'Freestyle Workout',
     });
+    navigate('/');
   };
 
   const handleFinishActiveWorkout = () => {
     setActiveWorkout(null);
-    setActiveTab('history');
+    navigate('/history');
   };
 
   const handleCancelActiveWorkout = () => {
     setActiveWorkout(null);
   };
+
+  // Route matching for Snippet Builder
+  const isSnippetBuilder = currentPath.startsWith('/snippet-builder');
+  let editSnippetId: string | undefined = undefined;
+  if (isSnippetBuilder) {
+    if (currentPath.startsWith('/snippet-builder/')) {
+      editSnippetId = currentPath.replace('/snippet-builder/', '').trim() || undefined;
+    } else if (window.location.search.includes('id=')) {
+      editSnippetId = new URLSearchParams(window.location.search).get('id') || undefined;
+    }
+  }
 
   if (!isDbReady) {
     return (
@@ -74,65 +109,143 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-container">
-      {/* Top Navigation */}
-      <header className="top-nav">
-        <div className="brand">
-          <div className="brand-icon">
-            <Dumbbell size={20} />
+      {/* Top Global Header with Global Sync Badge (Hidden in Snippet Builder for dedicated top bar) */}
+      {!isSnippetBuilder && (
+        <header className="top-nav">
+          <div className="brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+            <div className="brand-icon">
+              <Dumbbell size={20} />
+            </div>
+            <span className="brand-title">Gym Tracker</span>
           </div>
-          <span className="brand-title">Gym Tracker</span>
-        </div>
 
-        <SyncStatusBadge />
-      </header>
+          {/* Global Sync Status Badge hooking into useStatus */}
+          <SyncStatusBadge />
+        </header>
+      )}
 
       {/* Main View Area */}
       <main className="main-content">
-        {activeWorkout ? (
-          <ActiveWorkout
-            workoutId={activeWorkout.workoutId}
-            snippetName={activeWorkout.snippetName}
-            onFinish={handleFinishActiveWorkout}
-            onCancel={handleCancelActiveWorkout}
+        {/* Snippet Builder View (New or Edit) */}
+        {isSnippetBuilder ? (
+          <SnippetBuilderView
+            snippetId={editSnippetId}
+            onSave={() => navigate('/')}
+            onCancel={() => navigate('/')}
           />
         ) : (
           <>
-            {activeTab === 'snippets' && (
-              <SnippetManager
+            {/* Active Workout Session (Remains mounted to preserve timer state & logs) */}
+            {activeWorkout && (
+              <div style={{ display: currentPath === '/' ? 'block' : 'none' }}>
+                <ActiveWorkout
+                  workoutId={activeWorkout.workoutId}
+                  snippetId={activeWorkout.snippetId}
+                  snippetName={activeWorkout.snippetName}
+                  onFinish={handleFinishActiveWorkout}
+                  onCancel={handleCancelActiveWorkout}
+                />
+              </div>
+            )}
+
+            {/* Home / Snippets View (Shown on '/' when no workout active) */}
+            {!activeWorkout && currentPath === '/' && (
+              <HomeView
                 onStartSnippetWorkout={handleStartSnippetWorkout}
                 onStartFreestyleWorkout={handleStartFreestyleWorkout}
+                onNavigateToBuilder={(id?: string) => {
+                  if (id) navigate(`/snippet-builder/${id}`);
+                  else navigate('/snippet-builder');
+                }}
               />
             )}
 
-            {activeTab === 'exercises' && <ExerciseCatalog />}
+            {/* Exercises Catalog View */}
+            <div style={{ display: currentPath === '/exercises' ? 'block' : 'none' }}>
+              <ExercisesView />
+            </div>
 
-            {activeTab === 'history' && <WorkoutHistory />}
+            {/* Workout History View */}
+            <div style={{ display: currentPath === '/history' ? 'block' : 'none' }}>
+              <HistoryView />
+            </div>
           </>
         )}
       </main>
 
-      {/* Bottom Tab Bar (hidden during active workout for maximum focus) */}
-      {!activeWorkout && (
+      {/* Persistent Active Workout Mini-Banner (when navigating away to exercises/history) */}
+      {!isSnippetBuilder && activeWorkout && currentPath !== '/' && (
+        <div
+          onClick={() => navigate('/')}
+          style={{
+            position: 'fixed',
+            bottom: '84px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 'calc(100% - 32px)',
+            maxWidth: '488px',
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--accent-green)',
+            borderRadius: '14px',
+            padding: '12px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
+            cursor: 'pointer',
+            zIndex: 48,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="status-dot synced" />
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--accent-green)', textTransform: 'uppercase' }}>
+                Workout in Progress
+              </div>
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {activeWorkout.snippetName}
+              </div>
+            </div>
+          </div>
+
+          <button
+            className="btn btn-primary"
+            style={{ minHeight: '38px', height: '38px', padding: '0 14px', fontSize: '0.82rem', fontWeight: 800 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('/');
+            }}
+          >
+            <Play size={14} fill="white" /> Resume
+          </button>
+        </div>
+      )}
+
+      {/* Persistent Bottom Tab Bar (Hidden in Snippet Builder) */}
+      {!isSnippetBuilder && (
         <nav className="bottom-tab-bar">
           <button
-            className={`tab-btn ${activeTab === 'snippets' ? 'active' : ''}`}
-            onClick={() => setActiveTab('snippets')}
+            className={`tab-btn ${currentPath === '/' ? 'active' : ''}`}
+            onClick={() => navigate('/')}
+            id="tab-snippets"
           >
             <Layers size={22} />
             <span>Snippets</span>
           </button>
 
           <button
-            className={`tab-btn ${activeTab === 'exercises' ? 'active' : ''}`}
-            onClick={() => setActiveTab('exercises')}
+            className={`tab-btn ${currentPath === '/exercises' ? 'active' : ''}`}
+            onClick={() => navigate('/exercises')}
+            id="tab-exercises"
           >
             <Dumbbell size={22} />
             <span>Exercises</span>
           </button>
 
           <button
-            className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveTab('history')}
+            className={`tab-btn ${currentPath === '/history' ? 'active' : ''}`}
+            onClick={() => navigate('/history')}
+            id="tab-history"
           >
             <History size={22} />
             <span>History</span>

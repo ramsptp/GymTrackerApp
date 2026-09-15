@@ -1,7 +1,7 @@
 import { PowerSyncDatabase } from '@powersync/web';
 import { v4 as uuidv4 } from 'uuid';
 import { AppSchema } from './schema';
-import type { SetType } from './schema';
+import type { SetType, ExerciseRecord, SnippetRecord } from './schema';
 import { connector } from './connector';
 
 export const powersync = new PowerSyncDatabase({
@@ -80,6 +80,54 @@ export async function initDatabase() {
         );
       });
     }
+
+    // Seed initial starter snippet exercises if snippet_exercises is empty
+    const existingSE = await powersync.getAll<{ count: number }>('SELECT count(*) as count FROM snippet_exercises');
+    if (!existingSE[0] || existingSE[0].count === 0) {
+      const allEx = await powersync.getAll<ExerciseRecord>('SELECT * FROM exercises');
+      const findExId = (name: string) => allEx.find((e) => e.name.toLowerCase().includes(name.toLowerCase()))?.id;
+
+      const allSnippets = await powersync.getAll<SnippetRecord>('SELECT * FROM snippets');
+      const pushSnip = allSnippets.find((s) => s.name.toLowerCase().includes('push'));
+      const pullSnip = allSnippets.find((s) => s.name.toLowerCase().includes('pull'));
+      const legsSnip = allSnippets.find((s) => s.name.toLowerCase().includes('legs'));
+
+      await powersync.writeTransaction(async (tx) => {
+        if (pushSnip) {
+          const pushExs = ['Barbell Bench Press', 'Incline Dumbbell Press', 'Overhead Shoulder Press', 'Tricep Rope Pushdown']
+            .map(findExId)
+            .filter(Boolean) as string[];
+          for (let i = 0; i < pushExs.length; i++) {
+            await tx.execute(
+              'INSERT INTO snippet_exercises (id, snippet_id, exercise_id, sort_order) VALUES (?, ?, ?, ?)',
+              [uuidv4(), pushSnip.id, pushExs[i], i]
+            );
+          }
+        }
+        if (pullSnip) {
+          const pullExs = ['Conventional Deadlift', 'Pull-Up', 'Barbell Row', 'Barbell Bicep Curl']
+            .map(findExId)
+            .filter(Boolean) as string[];
+          for (let i = 0; i < pullExs.length; i++) {
+            await tx.execute(
+              'INSERT INTO snippet_exercises (id, snippet_id, exercise_id, sort_order) VALUES (?, ?, ?, ?)',
+              [uuidv4(), pullSnip.id, pullExs[i], i]
+            );
+          }
+        }
+        if (legsSnip) {
+          const legsExs = ['Barbell Squat', 'Romanian Deadlift', 'Leg Press', 'Hanging Leg Raise']
+            .map(findExId)
+            .filter(Boolean) as string[];
+          for (let i = 0; i < legsExs.length; i++) {
+            await tx.execute(
+              'INSERT INTO snippet_exercises (id, snippet_id, exercise_id, sort_order) VALUES (?, ?, ?, ?)',
+              [uuidv4(), legsSnip.id, legsExs[i], i]
+            );
+          }
+        }
+      });
+    }
   } catch (err) {
     console.error('Error seeding initial SQLite database:', err);
   }
@@ -95,14 +143,73 @@ export async function createExercise(name: string, muscle_group: string, userId:
   return id;
 }
 
-export async function createSnippet(name: string, userId: string = DEFAULT_USER_ID) {
+export async function createSnippet(
+  name: string,
+  exerciseIds: string[] = [],
+  userId: string = DEFAULT_USER_ID
+) {
   const id = uuidv4();
   const createdAt = new Date().toISOString();
-  await powersync.execute(
-    'INSERT INTO snippets (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
-    [id, userId, name, createdAt]
-  );
+
+  await powersync.writeTransaction(async (tx) => {
+    await tx.execute(
+      'INSERT INTO snippets (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
+      [id, userId, name, createdAt]
+    );
+
+    for (let i = 0; i < exerciseIds.length; i++) {
+      const seId = uuidv4();
+      await tx.execute(
+        'INSERT INTO snippet_exercises (id, snippet_id, exercise_id, sort_order) VALUES (?, ?, ?, ?)',
+        [seId, id, exerciseIds[i], i]
+      );
+    }
+  });
+
   return id;
+}
+
+export async function deleteSnippet(snippetId: string) {
+  await powersync.writeTransaction(async (tx) => {
+    await tx.execute('DELETE FROM snippet_exercises WHERE snippet_id = ?', [snippetId]);
+    await tx.execute('DELETE FROM snippets WHERE id = ?', [snippetId]);
+  });
+}
+
+export async function updateSnippet(
+  snippetId: string,
+  name: string,
+  exerciseIds: string[] = []
+) {
+  await powersync.writeTransaction(async (tx) => {
+    await tx.execute('UPDATE snippets SET name = ? WHERE id = ?', [name, snippetId]);
+    await tx.execute('DELETE FROM snippet_exercises WHERE snippet_id = ?', [snippetId]);
+
+    for (let i = 0; i < exerciseIds.length; i++) {
+      const seId = uuidv4();
+      await tx.execute(
+        'INSERT INTO snippet_exercises (id, snippet_id, exercise_id, sort_order) VALUES (?, ?, ?, ?)',
+        [seId, snippetId, exerciseIds[i], i]
+      );
+    }
+  });
+}
+
+export async function getSnippetById(snippetId: string): Promise<SnippetRecord | null> {
+  return await powersync.getOptional<SnippetRecord>(
+    'SELECT * FROM snippets WHERE id = ?',
+    [snippetId]
+  );
+}
+
+export async function getSnippetExercises(snippetId: string): Promise<ExerciseRecord[]> {
+  return await powersync.getAll<ExerciseRecord>(
+    `SELECT e.* FROM snippet_exercises se
+     JOIN exercises e ON se.exercise_id = e.id
+     WHERE se.snippet_id = ?
+     ORDER BY se.sort_order ASC`,
+    [snippetId]
+  );
 }
 
 export async function startWorkout(snippetId?: string, userId: string = DEFAULT_USER_ID) {

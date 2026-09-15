@@ -16,6 +16,14 @@ export const snippetsTable = new Table({
   created_at: column.text,
 });
 
+export const snippet_exercises = new Table({
+  snippet_id: column.text,
+  exercise_id: column.text,
+  sort_order: column.integer, // To maintain the order of exercises in the routine
+});
+
+export const snippetExercisesTable = snippet_exercises;
+
 export const workoutsTable = new Table({
   user_id: column.text,
   snippet_id: column.text,
@@ -35,6 +43,7 @@ export const setsTable = new Table({
 export const AppSchema = new Schema({
   exercises: exercisesTable,
   snippets: snippetsTable,
+  snippet_exercises: snippet_exercises,
   workouts: workoutsTable,
   sets: setsTable,
 });
@@ -55,6 +64,13 @@ export interface SnippetRecord {
   user_id: string;
   name: string;
   created_at: string;
+}
+
+export interface SnippetExerciseRecord {
+  id: string; // UUID
+  snippet_id: string;
+  exercise_id: string;
+  sort_order: number;
 }
 
 export interface WorkoutRecord {
