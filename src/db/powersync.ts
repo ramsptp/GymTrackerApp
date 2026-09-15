@@ -26,43 +26,47 @@ export async function getCurrentUserId(): Promise<string> {
   return DEFAULT_USER_ID;
 }
 
-const INITIAL_EXERCISES = [
-  { name: 'Barbell Bench Press', muscle_group: 'Chest' },
-  { name: 'Incline Dumbbell Press', muscle_group: 'Chest' },
-  { name: 'Chest Dips', muscle_group: 'Chest' },
-  { name: 'Barbell Squat', muscle_group: 'Legs' },
-  { name: 'Romanian Deadlift', muscle_group: 'Legs' },
-  { name: 'Leg Press', muscle_group: 'Legs' },
-  { name: 'Calf Raises', muscle_group: 'Legs' },
-  { name: 'Conventional Deadlift', muscle_group: 'Back' },
-  { name: 'Barbell Row', muscle_group: 'Back' },
-  { name: 'Lat Pulldown', muscle_group: 'Back' },
-  { name: 'Pull-Up', muscle_group: 'Back' },
-  { name: 'Overhead Shoulder Press', muscle_group: 'Shoulders' },
-  { name: 'Dumbbell Lateral Raise', muscle_group: 'Shoulders' },
-  { name: 'Face Pull', muscle_group: 'Shoulders' },
-  { name: 'Barbell Bicep Curl', muscle_group: 'Arms' },
-  { name: 'Incline Dumbbell Curl', muscle_group: 'Arms' },
-  { name: 'Tricep Rope Pushdown', muscle_group: 'Arms' },
-  { name: 'Skull Crushers', muscle_group: 'Arms' },
-  { name: 'Hanging Leg Raise', muscle_group: 'Core' },
-  { name: 'Cable Woodchopper', muscle_group: 'Core' },
-];
+
 
 export async function seedDefaultExercises() {
   try {
     const existing = await powersync.getAll<{ count: number }>('SELECT count(*) as count FROM exercises');
-    if (!existing[0] || existing[0].count === 0) {
-      await powersync.writeTransaction(async (tx) => {
-        for (const ex of INITIAL_EXERCISES) {
-          await tx.execute(
-            'INSERT INTO exercises (id, name, muscle_group, is_custom, user_id) VALUES (?, ?, ?, 0, NULL)',
-            [uuidv4(), ex.name, ex.muscle_group]
-          );
-        }
-      });
+    // If table is empty or has fewer than 100 exercises (i.e. old placeholder set), seed all 1,324 GymVisual exercises
+    if (!existing[0] || existing[0].count < 100) {
+      const fallbackExercises = (await import('./fallback_exercises.json')).default;
+      console.log(`Seeding ${fallbackExercises.length} GymVisual catalog exercises into local SQLite...`);
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < fallbackExercises.length; i += BATCH_SIZE) {
+        const batch = fallbackExercises.slice(i, i + BATCH_SIZE);
+        await powersync.writeTransaction(async (tx) => {
+          for (const ex of batch) {
+            await tx.execute(
+              `INSERT OR REPLACE INTO exercises (
+                id, name, body_part, target_muscle, secondary_muscles,
+                equipment, thumbnail_url, gif_url, instructions,
+                muscle_group, is_custom, user_id
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)`,
+              [
+                ex.id,
+                ex.name,
+                ex.body_part,
+                ex.target_muscle,
+                ex.secondary_muscles,
+                ex.equipment,
+                ex.thumbnail_url,
+                ex.gif_url,
+                ex.instructions,
+                ex.muscle_group,
+              ]
+            );
+          }
+        });
+      }
+    }
 
-      // Seed initial starter snippets (recurring workout structures)
+    // Seed initial starter snippets (recurring workout structures) if snippets table is empty
+    const existingSnippets = await powersync.getAll<{ count: number }>('SELECT count(*) as count FROM snippets');
+    if (!existingSnippets[0] || existingSnippets[0].count === 0) {
       const pushSnippetId = uuidv4();
       const pullSnippetId = uuidv4();
       const legsSnippetId = uuidv4();
@@ -96,7 +100,7 @@ export async function seedDefaultExercises() {
 
       await powersync.writeTransaction(async (tx) => {
         if (pushSnip) {
-          const pushExs = ['Barbell Bench Press', 'Incline Dumbbell Press', 'Overhead Shoulder Press', 'Tricep Rope Pushdown']
+          const pushExs = ['bench press', 'incline', 'overhead', 'pushdown']
             .map(findExId)
             .filter(Boolean) as string[];
           for (let i = 0; i < pushExs.length; i++) {
@@ -107,7 +111,7 @@ export async function seedDefaultExercises() {
           }
         }
         if (pullSnip) {
-          const pullExs = ['Conventional Deadlift', 'Pull-Up', 'Barbell Row', 'Barbell Bicep Curl']
+          const pullExs = ['deadlift', 'pull-up', 'row', 'curl']
             .map(findExId)
             .filter(Boolean) as string[];
           for (let i = 0; i < pullExs.length; i++) {
@@ -118,7 +122,7 @@ export async function seedDefaultExercises() {
           }
         }
         if (legsSnip) {
-          const legsExs = ['Barbell Squat', 'Romanian Deadlift', 'Leg Press', 'Hanging Leg Raise']
+          const legsExs = ['squat', 'deadlift', 'leg press', 'sit-up']
             .map(findExId)
             .filter(Boolean) as string[];
           for (let i = 0; i < legsExs.length; i++) {
@@ -202,17 +206,45 @@ export async function initDatabase() {
     console.warn('Could not auto-connect sync on init:', err);
   }
 
-  // Seed default exercises if table is empty
-  await seedDefaultExercises();
+  // Seed default exercises in the background so it doesn't block the UI thread
+  seedDefaultExercises().catch(e => console.error('Seeding failed:', e));
 }
 
 // Database helper functions (All UUIDs generated on client side)
-export async function createExercise(name: string, muscle_group: string, userId?: string) {
+export async function createExercise(
+  name: string,
+  muscle_group: string,
+  userId?: string,
+  extra?: {
+    body_part?: string;
+    target_muscle?: string;
+    secondary_muscles?: string;
+    equipment?: string;
+    thumbnail_url?: string;
+    gif_url?: string;
+    instructions?: string;
+  }
+) {
   const activeUserId = userId ?? (await getCurrentUserId());
   const id = uuidv4();
   await powersync.execute(
-    'INSERT INTO exercises (id, name, muscle_group, is_custom, user_id) VALUES (?, ?, ?, 1, ?)',
-    [id, name, muscle_group, activeUserId]
+    `INSERT INTO exercises (
+      id, name, muscle_group, body_part, target_muscle, secondary_muscles,
+      equipment, thumbnail_url, gif_url, instructions, is_custom, user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    [
+      id,
+      name,
+      muscle_group,
+      extra?.body_part || muscle_group.toLowerCase(),
+      extra?.target_muscle || muscle_group.toLowerCase(),
+      extra?.secondary_muscles || '[]',
+      extra?.equipment || 'custom',
+      extra?.thumbnail_url || null,
+      extra?.gif_url || null,
+      extra?.instructions || null,
+      activeUserId,
+    ]
   );
   return id;
 }

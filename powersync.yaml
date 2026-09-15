@@ -1,0 +1,20 @@
+# PowerSync Sync Rules Configuration
+# Copy and paste these rules into your PowerSync Cloud Dashboard -> Sync Rules
+
+bucket_definitions:
+  # 1. Global Public Exercise Catalog (GymVisual Dataset - 1,324 movements)
+  # Unrestricted read access so every client automatically syncs all movements
+  global_exercises:
+    data:
+      - SELECT * FROM exercises
+
+  # 2. User-Specific Partition (Snippets, Workouts, Sets)
+  # Scoped strictly by user_id to ensure privacy and fast sync
+  user_vault:
+    parameters:
+      - SELECT request.user_id() as user_id
+    data:
+      - SELECT * FROM snippets WHERE user_id = bucket.user_id
+      - SELECT snippet_exercises.* FROM snippet_exercises INNER JOIN snippets ON snippet_exercises.snippet_id = snippets.id WHERE snippets.user_id = bucket.user_id
+      - SELECT * FROM workouts WHERE user_id = bucket.user_id
+      - SELECT * FROM sets WHERE user_id = bucket.user_id

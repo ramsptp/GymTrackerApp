@@ -119,19 +119,30 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
 
   // Filter exercises in picker modal
   const filteredCatalog = allCatalogExercises.filter((ex) => {
-    const matchesGroup = selectedGroup === 'All' || ex.muscle_group.toLowerCase() === selectedGroup.toLowerCase();
-    const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          ex.muscle_group.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    const matchesGroup =
+      selectedGroup === 'All' ||
+      ex.muscle_group?.toLowerCase() === selectedGroup.toLowerCase() ||
+      ex.body_part?.toLowerCase() === selectedGroup.toLowerCase();
+
+    const matchesSearch =
+      !q ||
+      ex.name.toLowerCase().includes(q) ||
+      (ex.muscle_group && ex.muscle_group.toLowerCase().includes(q)) ||
+      (ex.target_muscle && ex.target_muscle.toLowerCase().includes(q)) ||
+      (ex.equipment && ex.equipment.toLowerCase().includes(q));
+
     return matchesGroup && matchesSearch;
   });
 
   // Group by muscle group
   const groupedCatalog: Record<string, ExerciseRecord[]> = {};
   filteredCatalog.forEach((ex) => {
-    if (!groupedCatalog[ex.muscle_group]) {
-      groupedCatalog[ex.muscle_group] = [];
+    const groupName = ex.muscle_group || ex.body_part || 'General';
+    if (!groupedCatalog[groupName]) {
+      groupedCatalog[groupName] = [];
     }
-    groupedCatalog[ex.muscle_group].push(ex);
+    groupedCatalog[groupName].push(ex);
   });
 
   if (loading) {
@@ -622,13 +633,13 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {groupedCatalog[muscle].map((ex) => (
+                    {groupedCatalog[muscle].slice(0, 40).map((ex) => (
                       <div
                         key={ex.id}
                         onClick={() => handleAddExerciseFromPicker(ex)}
                         style={{
                           minHeight: '56px',
-                          padding: '12px 16px',
+                          padding: '10px 14px',
                           borderRadius: '12px',
                           backgroundColor: 'var(--bg-surface-elevated)',
                           border: '1px solid var(--border-subtle)',
@@ -639,25 +650,64 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
                           transition: 'background-color 0.15s ease',
                         }}
                       >
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
-                            {ex.name}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              width: '38px',
+                              height: '38px',
+                              minWidth: '38px',
+                              borderRadius: '8px',
+                              overflow: 'hidden',
+                              background: '#1d222e',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {ex.thumbnail_url ? (
+                              <img
+                                src={ex.thumbnail_url}
+                                alt={ex.name}
+                                loading="lazy"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <Dumbbell size={18} color="var(--text-muted)" />
+                            )}
                           </div>
-                          <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                            {ex.muscle_group}
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.94rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {ex.name}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                              {ex.target_muscle && (
+                                <span style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600, textTransform: 'capitalize' }}>
+                                  {ex.target_muscle}
+                                </span>
+                              )}
+                              {ex.equipment && (
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                  • {ex.equipment}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
                         <div
                           style={{
-                            width: '38px',
-                            height: '38px',
+                            width: '36px',
+                            height: '36px',
                             borderRadius: '10px',
                             backgroundColor: 'rgba(16, 185, 129, 0.15)',
                             color: 'var(--accent-green)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            flexShrink: 0,
                           }}
                         >
                           <Plus size={18} strokeWidth={3} />

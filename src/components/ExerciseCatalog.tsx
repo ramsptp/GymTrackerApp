@@ -39,7 +39,7 @@ export const ExerciseCatalog: React.FC = () => {
   };
 
   const filtered = exercises.filter((ex) => {
-    const matchesGroup = selectedGroup === 'All' || ex.muscle_group.toLowerCase() === selectedGroup.toLowerCase();
+    const matchesGroup = selectedGroup === 'All' || (ex.muscle_group || '').toLowerCase() === selectedGroup.toLowerCase();
     const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase());
     return matchesGroup && matchesSearch;
   });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Plus, Trash2, Clock, Award } from 'lucide-react';
+import { Check, Plus, Trash2, Clock, Award, Dumbbell } from 'lucide-react';
 import { powersync, logSet, deleteSet, finishWorkout, cancelWorkout } from '../db/powersync';
 import type { SetType, ExerciseRecord } from '../db/schema';
 import { RestTimerBar } from './RestTimerBar';
@@ -234,10 +234,17 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
     setShowFinishSummary(true);
   };
 
-  const filteredExercises = allCatalogExercises.filter((ex) =>
-    ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ex.muscle_group.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredExercises = allCatalogExercises
+    .filter((ex) => {
+      const q = searchTerm.toLowerCase();
+      return (
+        ex.name.toLowerCase().includes(q) ||
+        (ex.muscle_group && ex.muscle_group.toLowerCase().includes(q)) ||
+        (ex.target_muscle && ex.target_muscle.toLowerCase().includes(q)) ||
+        (ex.equipment && ex.equipment.toLowerCase().includes(q))
+      );
+    })
+    .slice(0, 60);
 
   return (
     <div style={{ paddingBottom: '80px' }}>
@@ -442,7 +449,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                   key={ex.id}
                   onClick={() => handleAddExerciseToWorkout(ex)}
                   style={{
-                    padding: '14px 16px',
+                    padding: '10px 14px',
                     borderRadius: '12px',
                     backgroundColor: 'var(--bg-surface-elevated)',
                     border: '1px solid var(--border-subtle)',
@@ -452,9 +459,51 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                     cursor: 'pointer',
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{ex.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{ex.muscle_group}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        minWidth: '38px',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        background: '#1d222e',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {ex.thumbnail_url ? (
+                        <img
+                          src={ex.thumbnail_url}
+                          alt={ex.name}
+                          loading="lazy"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <Dumbbell size={18} color="var(--text-muted)" />
+                      )}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.92rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {ex.name}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                        {ex.target_muscle && (
+                          <span style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600, textTransform: 'capitalize' }}>
+                            {ex.target_muscle}
+                          </span>
+                        )}
+                        {ex.equipment && (
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                            • {ex.equipment}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <Plus size={18} color="#10b981" />
                 </div>
