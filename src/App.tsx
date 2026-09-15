@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, Layers, History, Play, User, ChevronDown } from 'lucide-react';
+import { Dumbbell, Layers, History, Play, User, ChevronDown, Home } from 'lucide-react';
 import { initDatabase, startWorkout } from './db/powersync';
 import type { SnippetRecord } from './db/schema';
 import { ActiveWorkout } from './components/ActiveWorkout';
@@ -7,7 +7,7 @@ import { HomeView } from './views/Home';
 import { ExercisesView } from './views/Exercises';
 import { HistoryView } from './views/History';
 import { SnippetBuilderView } from './views/SnippetBuilder';
-import { AccountView } from './views/Account';
+import { ProfileView } from './views/Profile';
 import { SyncStatusBadge } from './components/SyncStatusBadge';
 
 export const App: React.FC = () => {
@@ -191,9 +191,9 @@ export const App: React.FC = () => {
               <HistoryView />
             </div>
 
-            {/* Account & Cloud Sync View */}
-            <div style={{ display: currentPath === '/account' ? 'block' : 'none' }}>
-              <AccountView />
+            {/* Profile & Cloud Sync View */}
+            <div style={{ display: currentPath === '/profile' ? 'block' : 'none' }}>
+              <ProfileView />
             </div>
           </>
         )}
@@ -255,8 +255,8 @@ export const App: React.FC = () => {
             onClick={() => navigate('/')}
             id="tab-snippets"
           >
-            <Layers size={22} />
-            <span>Snippets</span>
+            <Home size={22} />
+            <span>Home</span>
           </button>
 
           <button
@@ -278,12 +278,12 @@ export const App: React.FC = () => {
           </button>
 
           <button
-            className={`tab-btn ${currentPath === '/account' ? 'active' : ''}`}
-            onClick={() => navigate('/account')}
-            id="tab-account"
+            className={`tab-btn ${currentPath === '/profile' ? 'active' : ''}`}
+            onClick={() => navigate('/profile')}
+            id="tab-profile"
           >
             <User size={22} />
-            <span>Account</span>
+            <span>Profile</span>
           </button>
         </nav>
       )}

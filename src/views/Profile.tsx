@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useStatus } from '@powersync/react';
+import { useStatus, useQuery } from '@powersync/react';
+import { supabase } from '../db/supabase';
 import {
   User as UserIcon,
   LogOut,
@@ -11,10 +12,11 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
+  Save
 } from 'lucide-react';
-import { connectSync } from '../db/powersync';
+import { connectSync, powersync } from '../db/powersync';
 
-export const AccountView: React.FC = () => {
+export const ProfileView: React.FC = () => {
   const { user, signIn, signUp, signOut } = useAuth();
   const status = useStatus();
 
@@ -24,6 +26,25 @@ export const AccountView: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSyncingManual, setIsSyncingManual] = useState(false);
+
+  // Profile Form State
+  const { data: profileData } = useQuery('SELECT * FROM profiles WHERE id = ?', [user?.id || '']);
+  const profile = profileData?.[0];
+  const [usernameInput, setUsernameInput] = useState('');
+  const [ageInput, setAgeInput] = useState('');
+  const [weightInput, setWeightInput] = useState('');
+  const [heightInput, setHeightInput] = useState('');
+  const [showUsernameConfirm, setShowUsernameConfirm] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      if (profile.username && !usernameInput) setUsernameInput(profile.username);
+      if (profile.age && !ageInput) setAgeInput(profile.age.toString());
+      if (profile.weight_kg && !weightInput) setWeightInput(profile.weight_kg.toString());
+      if (profile.height_cm && !heightInput) setHeightInput(profile.height_cm.toString());
+    }
+  }, [profile]);
 
   // Determine current synchronization state from PowerSync observer
   const isSyncing = status?.uploading || status?.downloading || status?.connecting || isSyncingManual;
@@ -117,12 +138,72 @@ export const AccountView: React.FC = () => {
     }
   };
 
+  const saveProfileStats = async () => {
+    if (!user) return;
+    setProfileSaving(true);
+    try {
+      await powersync.execute(
+        `INSERT OR REPLACE INTO profiles (id, username, age, weight_kg, height_cm, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          user.id,
+          profile?.username || null,
+          ageInput ? parseInt(ageInput) : null,
+          weightInput ? parseFloat(weightInput) : null,
+          heightInput ? parseFloat(heightInput) : null,
+          new Date().toISOString()
+        ]
+      );
+      setSuccessMsg('Profile stats saved locally (syncs automatically).');
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (e) {
+      console.error('Save profile error', e);
+      setErrorMsg('Failed to save profile stats.');
+    }
+    setProfileSaving(false);
+  };
+
+  const confirmUsername = async () => {
+    if (!user || !usernameInput.trim()) return;
+    if (!status?.connected && !navigator.onLine) {
+      setErrorMsg('You must be online to set your username.');
+      setShowUsernameConfirm(false);
+      return;
+    }
+    
+    setProfileSaving(true);
+    setErrorMsg(null);
+    try {
+      // Direct Supabase client call to avoid local-first race conditions
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username: usernameInput.trim() })
+        .eq('id', user.id);
+        
+      if (error) {
+        if (error.code === '23505') {
+          setErrorMsg('This username is already taken. Please choose another.');
+        } else {
+          setErrorMsg('Failed to set username: ' + error.message);
+        }
+      } else {
+        setSuccessMsg('Username set successfully!');
+        setTimeout(() => setSuccessMsg(null), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+      setErrorMsg('An unexpected error occurred while setting username.');
+    }
+    setProfileSaving(false);
+    setShowUsernameConfirm(false);
+  };
+
   return (
     <div style={{ maxWidth: '488px', margin: '0 auto' }}>
       {/* View Header */}
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
-          Account
+          Profile
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
           {user ? 'Cloud sync and device telemetry active' : 'Log in to securely sync your gym records to the cloud'}
@@ -175,6 +256,135 @@ export const AccountView: React.FC = () => {
             </div>
           </div>
 
+          {/* Profile Details Form */}
+          <div className="card" style={{ marginBottom: 0 }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px' }}>Profile Details</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Username
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="@athlete"
+                    value={profile?.username || usernameInput}
+                    onChange={(e) => setUsernameInput(e.target.value)}
+                    disabled={!!profile?.username || profileSaving}
+                    style={{
+                      flex: 1,
+                      height: '44px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      color: profile?.username ? 'var(--text-secondary)' : 'var(--text-primary)',
+                      fontSize: '1rem',
+                      padding: '0 16px',
+                      outline: 'none'
+                    }}
+                  />
+                  {!profile?.username && (
+                    <button
+                      onClick={() => setShowUsernameConfirm(true)}
+                      disabled={!usernameInput.trim() || profileSaving}
+                      className="btn btn-primary"
+                      style={{ height: '44px', minHeight: '44px', padding: '0 16px', fontSize: '0.9rem' }}
+                    >
+                      Set Username
+                    </button>
+                  )}
+                </div>
+                {!profile?.username && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    Username can only be set once and requires an active internet connection.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Age
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="25"
+                    value={ageInput}
+                    onChange={(e) => setAgeInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      color: 'var(--text-primary)',
+                      fontSize: '1rem',
+                      padding: '0 12px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Weight (kg)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="75.5"
+                    value={weightInput}
+                    onChange={(e) => setWeightInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      color: 'var(--text-primary)',
+                      fontSize: '1rem',
+                      padding: '0 12px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Height (cm)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="180"
+                    value={heightInput}
+                    onChange={(e) => setHeightInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      color: 'var(--text-primary)',
+                      fontSize: '1rem',
+                      padding: '0 12px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={saveProfileStats}
+                disabled={profileSaving}
+                className="btn btn-secondary"
+                style={{ width: '100%', height: '44px', minHeight: '44px', marginTop: '4px' }}
+              >
+                <Save size={18} />
+                Save Stats
+              </button>
+            </div>
+          </div>
+
           {/* Red-outlined Massive Sign Out Button (56px Touch Target) */}
           <button
             onClick={handleSignOut}
@@ -196,6 +406,20 @@ export const AccountView: React.FC = () => {
             <LogOut size={20} />
             <span>{isLoading ? 'Signing Out...' : 'Sign Out'}</span>
           </button>
+
+          {/* Success / Error Messages for Profile */}
+          {errorMsg && (
+            <div style={{ backgroundColor: 'rgba(244, 63, 94, 0.12)', border: '1px solid var(--accent-rose)', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--accent-rose)', fontSize: '0.85rem' }}>
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+          {successMsg && (
+            <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.12)', border: '1px solid var(--accent-green)', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--accent-green)', fontSize: '0.85rem' }}>
+              <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+              <span>{successMsg}</span>
+            </div>
+          )}
 
           {/* Embedded PowerSync Telemetry Details */}
           <div className="card" style={{ marginBottom: 0 }}>
@@ -534,6 +758,36 @@ export const AccountView: React.FC = () => {
               You can log workouts, create Snippets, and view history completely offline without an account.
               Signing in connects PowerSync to replicate your gym history across all your devices securely.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Username Confirmation Modal */}
+      {showUsernameConfirm && (
+        <div className="modal-backdrop" style={{ zIndex: 200, alignItems: 'center' }}>
+          <div className="modal-sheet" style={{ borderRadius: 'var(--radius-xl)', padding: '24px' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '12px' }}>Confirm Username</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.95rem' }}>
+              Are you sure you want to set your username to <strong style={{ color: 'var(--text-primary)' }}>{usernameInput}</strong>? 
+              This <strong style={{ color: 'var(--accent-rose)' }}>cannot be changed</strong> later.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => setShowUsernameConfirm(false)} 
+                className="btn btn-secondary" 
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmUsername} 
+                className="btn btn-primary" 
+                style={{ flex: 1 }}
+                disabled={profileSaving}
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}

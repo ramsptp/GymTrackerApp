@@ -48,7 +48,17 @@ export const setsTable = new Table({
   user_id: column.text,
 });
 
+export const profilesTable = new Table({
+  username: column.text,
+  age: column.integer,
+  weight_kg: column.real,
+  height_cm: column.real,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
 export const AppSchema = new Schema({
+  profiles: profilesTable,
   exercises: exercisesTable,
   snippets: snippetsTable,
   snippet_exercises: snippet_exercises,

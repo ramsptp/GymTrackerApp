@@ -18,3 +18,4 @@ bucket_definitions:
       - SELECT snippet_exercises.* FROM snippet_exercises INNER JOIN snippets ON snippet_exercises.snippet_id = snippets.id WHERE snippets.user_id = bucket.user_id
       - SELECT * FROM workouts WHERE user_id = bucket.user_id
       - SELECT * FROM sets WHERE user_id = bucket.user_id
+      - SELECT * FROM profiles WHERE id = bucket.user_id
