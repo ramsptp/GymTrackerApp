@@ -50,6 +50,7 @@ export const setsTable = new Table({
 
 export const profilesTable = new Table({
   username: column.text,
+  avatar_url: column.text,
   age: column.integer,
   weight_kg: column.real,
   height_cm: column.real,

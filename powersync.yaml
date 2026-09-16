@@ -1,21 +1,41 @@
-# PowerSync Sync Rules Configuration
-# Copy and paste these rules into your PowerSync Cloud Dashboard -> Sync Rules
-
 bucket_definitions:
-  # 1. Global Public Exercise Catalog (GymVisual Dataset - 1,324 movements)
-  # Unrestricted read access so every client automatically syncs all movements
+  # 1. Global Public Exercise Catalog
   global_exercises:
     data:
       - SELECT * FROM exercises
 
-  # 2. User-Specific Partition (Snippets, Workouts, Sets)
-  # Scoped strictly by user_id to ensure privacy and fast sync
+  # 2. Base User Partition
   user_vault:
     parameters:
       - SELECT request.user_id() as user_id
     data:
+      - SELECT * FROM profiles WHERE id = bucket.user_id
       - SELECT * FROM snippets WHERE user_id = bucket.user_id
-      - SELECT snippet_exercises.* FROM snippet_exercises INNER JOIN snippets ON snippet_exercises.snippet_id = snippets.id WHERE snippets.user_id = bucket.user_id
       - SELECT * FROM workouts WHERE user_id = bucket.user_id
       - SELECT * FROM sets WHERE user_id = bucket.user_id
-      - SELECT * FROM profiles WHERE id = bucket.user_id
+      - SELECT * FROM friendships WHERE requester_id = bucket.user_id OR addressee_id = bucket.user_id
+
+  # 3. User Snippet Exercises
+  user_snippet_exercises:
+    parameters:
+      - SELECT id as snippet_id FROM snippets WHERE user_id = request.user_id()
+    data:
+      - SELECT * FROM snippet_exercises WHERE snippet_id = bucket.snippet_id
+
+  # 4. Friends' Profiles
+  friends_profiles:
+    parameters:
+      - SELECT addressee_id as friend_id FROM friendships WHERE requester_id = request.user_id()
+      - SELECT requester_id as friend_id FROM friendships WHERE addressee_id = request.user_id()
+    data:
+      - SELECT * FROM profiles WHERE id = bucket.friend_id
+
+  # 5. Shared Workouts Data
+  shared_workouts:
+    parameters:
+      - SELECT workout_id FROM workout_participants WHERE user_id = request.user_id()
+    data:
+      # Syncs the workout, participants, and ALL sets for any workout you are invited to!
+      - SELECT * FROM workouts WHERE id = bucket.workout_id
+      - SELECT * FROM workout_participants WHERE workout_id = bucket.workout_id
+      - SELECT * FROM sets WHERE workout_id = bucket.workout_id

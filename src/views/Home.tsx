@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Plus, Layers, Bolt, MoreVertical, Edit3, Trash2 } from 'lucide-react';
+import { Play, Plus, Layers, Bolt, MoreVertical, Edit3, Trash2, ChevronDown } from 'lucide-react';
 import { powersync, deleteSnippet } from '../db/powersync';
 import type { SnippetRecord, WorkoutRecord, SetRecord } from '../db/schema';
 import { useAuth } from '../context/AuthContext';
@@ -7,10 +7,27 @@ import { useQuery } from '@powersync/react';
 import { Check, X } from 'lucide-react';
 
 interface HomeViewProps {
-  onStartSnippetWorkout: (snippet: SnippetRecord) => void;
-  onStartFreestyleWorkout: () => void;
+  onStartSnippetWorkout: (snippet: SnippetRecord, partnerId?: string) => void;
+  onStartFreestyleWorkout: (partnerId?: string) => void;
   onNavigateToBuilder: (snippetId?: string) => void;
 }
+
+const UserAvatar = ({ profile, color, fallbackLetter }: { profile: any, color: string, fallbackLetter: string }) => {
+  if (profile?.avatar_url) {
+    return (
+      <img 
+        src={profile.avatar_url} 
+        alt="avatar" 
+        style={{ width: 24, height: 24, minWidth: 24, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${color}` }} 
+      />
+    );
+  }
+  return (
+    <div style={{ width: 24, height: 24, minWidth: 24, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>
+      {fallbackLetter}
+    </div>
+  );
+};
 
 export const HomeView: React.FC<HomeViewProps> = ({
   onStartSnippetWorkout,
@@ -22,10 +39,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [weeklyCount, setWeeklyCount] = useState(0);
   const [monthlyVolume, setMonthlyVolume] = useState(0);
   const [monthlySessions, setMonthlySessions] = useState(0);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
+  const [isPartnerDropdownOpen, setIsPartnerDropdownOpen] = useState(false);
 
   const { user } = useAuth();
   const { data: profileData } = useQuery('SELECT username FROM profiles WHERE id = ?', [user?.id || '']);
   const profile = profileData?.[0];
+
+  const { data: friendsList } = useQuery(
+    `SELECT f.*, p.username, p.id as friend_id, p.avatar_url
+     FROM friendships f 
+     JOIN profiles p ON (f.requester_id = p.id OR f.addressee_id = p.id) 
+     WHERE (f.requester_id = ? OR f.addressee_id = ?) 
+     AND f.status = 'accepted' 
+     AND p.id != ?`, 
+    [user?.id || '', user?.id || '', user?.id || '']
+  );
 
   const { data: pendingInvitations } = useQuery(
     `SELECT wp.id as invite_id, wp.workout_id, w.start_time, p.username as owner_username
@@ -88,13 +117,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       setSnippets((prev) => prev.filter(s => s.id !== id));
       await deleteSnippet(id);
       loadData();
-    }
-  };
-
-  const handleScrollToSnippets = () => {
-    const el = document.getElementById('my-snippets-section');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -219,23 +241,129 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <button
             className="btn btn-primary btn-lg"
             style={{ minHeight: '52px', height: '52px', fontSize: '1rem', fontWeight: 600 }}
-            onClick={onStartFreestyleWorkout}
+            onClick={() => onStartFreestyleWorkout(selectedPartnerId || undefined)}
             id="btn-empty-workout"
           >
             <Plus size={22} strokeWidth={3} />
             <span>Start Empty Workout</span>
           </button>
 
-          {/* Secondary Routine Action: Strictly "Browse Snippets" */}
-          <button
-            className="btn btn-secondary btn-lg"
-            style={{ minHeight: '52px', height: '52px', fontSize: '1rem', fontWeight: 500 }}
-            onClick={handleScrollToSnippets}
-            id="btn-browse-snippets"
-          >
-            <Layers size={20} color="var(--text-secondary)" />
-            <span>Browse Snippets</span>
-          </button>
+          {/* Workout Partner Selector */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setIsPartnerDropdownOpen(!isPartnerDropdownOpen)}
+              style={{
+                width: '100%',
+                height: '52px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
+                padding: '0 16px',
+                outline: 'none',
+                fontSize: '1rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {selectedPartnerId ? (
+                  <>
+                    <UserAvatar 
+                      profile={friendsList?.find(f => f.friend_id === selectedPartnerId)} 
+                      color="#8b5cf6" 
+                      fallbackLetter={friendsList?.find(f => f.friend_id === selectedPartnerId)?.username?.substring(0, 2).toUpperCase() || 'P'} 
+                    />
+                    <span>{friendsList?.find(f => f.friend_id === selectedPartnerId)?.username}</span>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+                      👤
+                    </div>
+                    <span>Select a friend to work out with</span>
+                  </>
+                )}
+              </div>
+              <ChevronDown size={20} color="var(--text-secondary)" />
+            </button>
+
+            {isPartnerDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '56px',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  padding: '6px',
+                  boxShadow: '0 12px 28px rgba(0, 0, 0, 0.6)',
+                  zIndex: 50,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                }}
+              >
+                <button
+                  onClick={() => { setSelectedPartnerId(''); setIsPartnerDropdownOpen(false); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '12px 14px',
+                    background: selectedPartnerId === '' ? 'var(--bg-surface)' : 'none',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    width: '100%',
+                  }}
+                >
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    👤
+                  </div>
+                  <span>Solo Workout</span>
+                </button>
+
+                {friendsList?.map((f) => (
+                  <button
+                    key={f.friend_id}
+                    onClick={() => { setSelectedPartnerId(f.friend_id); setIsPartnerDropdownOpen(false); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '12px 14px',
+                      background: selectedPartnerId === f.friend_id ? 'var(--bg-surface)' : 'none',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%',
+                    }}
+                  >
+                    <UserAvatar 
+                      profile={f} 
+                      color="#8b5cf6" 
+                      fallbackLetter={f.username?.substring(0, 2).toUpperCase() || 'P'} 
+                    />
+                    <span>{f.username}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -455,7 +583,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <button
                   className="btn btn-primary"
                   style={{ minHeight: '44px', height: '44px', padding: '0 16px', fontSize: '0.9rem', fontWeight: 600, borderRadius: '12px' }}
-                  onClick={() => onStartSnippetWorkout(snippet)}
+                  onClick={() => onStartSnippetWorkout(snippet, selectedPartnerId || undefined)}
                   id={`btn-start-snippet-${snippet.id}`}
                 >
                   <Play size={16} fill="white" />

@@ -22,6 +22,7 @@ export const App: React.FC = () => {
     workoutId: string;
     snippetId?: string;
     snippetName?: string;
+    partnerId?: string;
   } | null>(null);
 
   const [isWorkoutExpanded, setIsWorkoutExpanded] = useState(false);
@@ -61,21 +62,23 @@ export const App: React.FC = () => {
     bootstrap();
   }, []);
 
-  const handleStartSnippetWorkout = async (snippet: SnippetRecord) => {
+  const handleStartSnippetWorkout = async (snippet: SnippetRecord, partnerId?: string) => {
     const workoutId = await startWorkout(snippet.id);
     setActiveWorkout({
       workoutId,
       snippetId: snippet.id,
       snippetName: snippet.name,
+      partnerId,
     });
     setIsWorkoutExpanded(true);
   };
 
-  const handleStartFreestyleWorkout = async () => {
+  const handleStartFreestyleWorkout = async (partnerId?: string) => {
     const workoutId = await startWorkout();
     setActiveWorkout({
       workoutId,
       snippetName: 'Freestyle Workout',
+      partnerId,
     });
     setIsWorkoutExpanded(true);
   };
@@ -181,6 +184,7 @@ export const App: React.FC = () => {
                   workoutId={activeWorkout.workoutId}
                   snippetId={activeWorkout.snippetId}
                   snippetName={activeWorkout.snippetName}
+                  partnerId={activeWorkout.partnerId}
                   onFinish={handleFinishActiveWorkout}
                   onCancel={handleCancelActiveWorkout}
                 />
@@ -200,19 +204,19 @@ export const App: React.FC = () => {
             )}
 
             {/* Exercises Catalog View */}
-            <div style={{ display: currentPath === '/exercises' ? 'block' : 'none' }}>
+            {currentPath === '/exercises' && (
               <ExercisesView />
-            </div>
+            )}
 
             {/* Workout History View */}
-            <div style={{ display: currentPath === '/history' ? 'block' : 'none' }}>
+            {currentPath === '/history' && (
               <HistoryView />
-            </div>
+            )}
 
             {/* Profile & Cloud Sync View */}
-            <div style={{ display: currentPath === '/profile' ? 'block' : 'none' }}>
+            {currentPath === '/profile' && (
               <ProfileView />
-            </div>
+            )}
           </>
         )}
       </main>
