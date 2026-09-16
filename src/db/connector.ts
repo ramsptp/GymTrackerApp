@@ -52,7 +52,27 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
           const table = op.table;
           const data = { ...op.opData, id: op.id };
 
-          if (op.op === UpdateType.PUT || op.op === UpdateType.PATCH || op.op === 'PUT' || op.op === 'PATCH') {
+          // Skip uploading public catalog exercises (they are read-only from the server)
+          if (table === 'exercises' && (data.is_custom === 0 || data.user_id === null)) {
+            continue;
+          }
+
+          // Automatically reassign offline/guest rows to the authenticated user on upload
+          if (data.user_id === '00000000-0000-0000-0000-000000000001' || data.user_id === 'default_user') {
+            data.user_id = session.user.id;
+          }
+
+          // Strip null timestamps to prevent Supabase NOT NULL constraint errors
+          if (data.created_at === null) delete data.created_at;
+          if (data.updated_at === null) delete data.updated_at;
+
+          if (op.op === UpdateType.PATCH || op.op === 'PATCH') {
+            // PATCH operations only contain changed columns. 
+            // Using upsert would fail NOT NULL constraints for omitted columns, so we use update()
+            const { error } = await supabase.from(table).update(data).eq('id', op.id);
+            if (error) throw error;
+          } else if (op.op === UpdateType.PUT || op.op === 'PUT') {
+            // PUT operations contain the full row, so upsert is safe
             const { error } = await supabase.from(table).upsert(data);
             if (error) throw error;
           } else if (op.op === UpdateType.DELETE || op.op === 'DELETE') {
@@ -61,8 +81,9 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
           }
         }
         await transaction.complete();
-      } catch (ex) {
+      } catch (ex: any) {
         console.error('Failed to sync transaction to Supabase:', ex);
+        alert('Sync Error: ' + (ex.message || JSON.stringify(ex)));
         throw ex;
       }
     }

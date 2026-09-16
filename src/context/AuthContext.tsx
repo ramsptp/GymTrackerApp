@@ -32,14 +32,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
         if (profile) {
           await powersync.execute(
-            `INSERT OR REPLACE INTO profiles (id, username, age, weight_kg, height_cm, updated_at) 
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO profiles (id, username, age, weight_kg, height_cm, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [
               profile.id,
               profile.username || null,
               profile.age || null,
               profile.weight_kg || null,
               profile.height_cm || null,
+              profile.created_at || new Date().toISOString(),
               profile.updated_at || new Date().toISOString()
             ]
           );
