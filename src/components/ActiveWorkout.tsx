@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Check, Plus, Trash2, Clock, Award, Dumbbell } from 'lucide-react';
 import { powersync, logSet, deleteSet, finishWorkout, cancelWorkout } from '../db/powersync';
 import type { SetType, ExerciseRecord } from '../db/schema';
+import { useQuery } from '@powersync/react';
+import { useAuth } from '../context/AuthContext';
+import { v4 as uuidv4 } from 'uuid';
 
 
 interface ActiveWorkoutProps {
@@ -38,6 +41,18 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showFinishSummary, setShowFinishSummary] = useState(false);
   const [summaryStats, setSummaryStats] = useState({ volume: 0, sets: 0, duration: '' });
+  const [selectedFriendId, setSelectedFriendId] = useState<string>('');
+
+  const { user } = useAuth();
+  const { data: friendsList } = useQuery(
+    `SELECT f.*, p.username, p.id as friend_id
+     FROM friendships f 
+     JOIN profiles p ON (f.requester_id = p.id OR f.addressee_id = p.id) 
+     WHERE (f.requester_id = ? OR f.addressee_id = ?) 
+     AND f.status = 'accepted' 
+     AND p.id != ?`, 
+    [user?.id || '', user?.id || '', user?.id || '']
+  );
 
   // Elapsed workout timer
   useEffect(() => {
@@ -535,10 +550,51 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
               </div>
             </div>
 
+            {friendsList && friendsList.length > 0 && (
+              <div style={{ marginBottom: '24px', textAlign: 'left' }}>
+                <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Tag a Partner</h4>
+                <select
+                  value={selectedFriendId}
+                  onChange={(e) => setSelectedFriendId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: '44px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    color: 'var(--text-primary)',
+                    padding: '0 12px',
+                    outline: 'none',
+                    fontSize: '0.95rem'
+                  }}
+                >
+                  <option value="">Just me</option>
+                  {friendsList.map(f => (
+                    <option key={f.friend_id} value={f.friend_id}>{f.username}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <button
               type="button"
               className="btn btn-primary btn-lg"
-              onClick={onFinish}
+              onClick={async () => {
+                if (selectedFriendId && user) {
+                  const now = new Date().toISOString();
+                  // Add self as owner
+                  await powersync.execute(
+                    `INSERT OR REPLACE INTO workout_participants (id, workout_id, user_id, status, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [uuidv4(), workoutId, user.id, 'confirmed', 'owner', now]
+                  );
+                  // Add friend as pending participant
+                  await powersync.execute(
+                    `INSERT OR REPLACE INTO workout_participants (id, workout_id, user_id, status, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [uuidv4(), workoutId, selectedFriendId, 'pending', 'participant', now]
+                  );
+                }
+                onFinish();
+              }}
             >
               Done
             </button>

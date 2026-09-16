@@ -168,7 +168,7 @@ export const LandingView: React.FC<{
               <input
                 id="username-input"
                 type="text"
-                placeholder="@athlete"
+                placeholder="athlete"
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
                 disabled={isLoading}

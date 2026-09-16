@@ -8,9 +8,16 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
-  Save
+  Save,
+  Users,
+  Search,
+  UserPlus,
+  UserCheck,
+  UserX
 } from 'lucide-react';
 import { connectSync, powersync } from '../db/powersync';
+import { supabase } from '../db/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 export const ProfileView: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -36,6 +43,113 @@ export const ProfileView: React.FC = () => {
       if (profile.height_cm && !heightInput) setHeightInput(profile.height_cm.toString());
     }
   }, [profile]);
+
+  // Friends System State
+  const [friendSearchInput, setFriendSearchInput] = useState('');
+  const [friendSearchResult, setFriendSearchResult] = useState<{ id: string; username: string } | null>(null);
+  const [friendSearchLoading, setFriendSearchLoading] = useState(false);
+  const [friendSearchError, setFriendSearchError] = useState<string | null>(null);
+
+  const { data: pendingRequests } = useQuery(
+    `SELECT f.*, p.username 
+     FROM friendships f 
+     JOIN profiles p ON f.requester_id = p.id 
+     WHERE f.addressee_id = ? AND f.status = 'pending'`, 
+    [user?.id || '']
+  );
+
+  const { data: friendsList } = useQuery(
+    `SELECT f.*, p.username, p.id as friend_id
+     FROM friendships f 
+     JOIN profiles p ON (f.requester_id = p.id OR f.addressee_id = p.id) 
+     WHERE (f.requester_id = ? OR f.addressee_id = ?) 
+     AND f.status = 'accepted' 
+     AND p.id != ?`, 
+    [user?.id || '', user?.id || '', user?.id || '']
+  );
+
+  const handleSearchFriend = async () => {
+    if (!friendSearchInput.trim() || !user) return;
+    setFriendSearchLoading(true);
+    setFriendSearchError(null);
+    setFriendSearchResult(null);
+    try {
+      // Strip any @ they might have typed by habit
+      let cleanSearch = friendSearchInput.trim();
+      if (cleanSearch.startsWith('@')) {
+        cleanSearch = cleanSearch.substring(1);
+      }
+      
+      // Also strip @ from the current user's profile just in case
+      let myCleanUsername = profile?.username || '';
+      if (myCleanUsername.startsWith('@')) {
+        myCleanUsername = myCleanUsername.substring(1);
+      }
+      
+      if (cleanSearch.toLowerCase() === myCleanUsername.toLowerCase()) {
+        setFriendSearchError("You cannot add yourself.");
+        return;
+      }
+
+      // Case-insensitive exact match query
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .ilike('username', cleanSearch)
+        .limit(1)
+        .maybeSingle();
+        
+      if (error || !data) {
+        setFriendSearchError("User not found.");
+      } else {
+        setFriendSearchResult(data);
+      }
+    } catch (e) {
+      setFriendSearchError("Error searching user.");
+    } finally {
+      setFriendSearchLoading(false);
+    }
+  };
+
+  const handleSendFriendRequest = async () => {
+    if (!user || !friendSearchResult) return;
+    try {
+      await powersync.execute(
+        `INSERT OR REPLACE INTO friendships (id, requester_id, addressee_id, status, created_at) 
+         VALUES (?, ?, ?, 'pending', ?)`,
+        [uuidv4(), user.id, friendSearchResult.id, new Date().toISOString()]
+      );
+      setSuccessMsg(`Friend request sent to ${friendSearchResult.username}!`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+      setFriendSearchResult(null);
+      setFriendSearchInput('');
+    } catch (e) {
+      setErrorMsg("Failed to send request.");
+      setTimeout(() => setErrorMsg(null), 3000);
+    }
+  };
+
+  const handleAcceptRequest = async (friendshipId: string) => {
+    try {
+      await powersync.execute(
+        `UPDATE friendships SET status = 'accepted' WHERE id = ?`,
+        [friendshipId]
+      );
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeclineRequest = async (friendshipId: string) => {
+    try {
+      await powersync.execute(
+        `UPDATE friendships SET status = 'declined' WHERE id = ?`,
+        [friendshipId]
+      );
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Determine current synchronization state from PowerSync observer
   const isSyncing = status?.uploading || status?.downloading || status?.connecting || isSyncingManual;
@@ -264,6 +378,115 @@ export const ProfileView: React.FC = () => {
               <Save size={18} />
               Save Stats
             </button>
+          </div>
+        </div>
+
+        {/* Friends Management Section */}
+        <div className="card" style={{ marginBottom: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <Users size={20} color="var(--accent-blue)" />
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Friends</h3>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <input
+              type="text"
+              placeholder="Search by username..."
+              value={friendSearchInput}
+              onChange={(e) => setFriendSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchFriend()}
+              style={{
+                flex: 1,
+                height: '44px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
+                padding: '0 12px',
+                outline: 'none'
+              }}
+            />
+            <button 
+              className="btn btn-secondary" 
+              onClick={handleSearchFriend}
+              disabled={friendSearchLoading}
+              style={{ minHeight: '44px', height: '44px', padding: '0 16px' }}
+            >
+              <Search size={18} />
+            </button>
+          </div>
+
+          {friendSearchError && (
+            <p style={{ color: 'var(--accent-rose)', fontSize: '0.85rem', marginTop: '-8px', marginBottom: '12px' }}>
+              {friendSearchError}
+            </p>
+          )}
+
+          {friendSearchResult && (
+            <div style={{ 
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+              padding: '12px', backgroundColor: 'var(--bg-surface-elevated)', 
+              borderRadius: '8px', marginBottom: '16px', border: '1px solid var(--border-subtle)' 
+            }}>
+              <div style={{ fontWeight: 600 }}>{friendSearchResult.username}</div>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSendFriendRequest}
+                style={{ minHeight: '36px', height: '36px', padding: '0 12px', fontSize: '0.85rem' }}
+              >
+                <UserPlus size={16} /> Add Friend
+              </button>
+            </div>
+          )}
+
+          {pendingRequests && pendingRequests.length > 0 && (
+            <div style={{ marginBottom: '16px' }}>
+              <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Pending Requests</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {pendingRequests.map(req => (
+                  <div key={req.id} style={{ 
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                    padding: '12px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: '8px' 
+                  }}>
+                    <div style={{ fontWeight: 600 }}>{req.username}</div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={() => handleAcceptRequest(req.id)}
+                        style={{ minHeight: '32px', height: '32px', padding: '0 10px' }}
+                      >
+                        <UserCheck size={16} />
+                      </button>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={() => handleDeclineRequest(req.id)}
+                        style={{ minHeight: '32px', height: '32px', padding: '0 10px', color: 'var(--accent-rose)' }}
+                      >
+                        <UserX size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>My Friends</h4>
+            {friendsList && friendsList.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {friendsList.map(friend => (
+                  <div key={friend.id} style={{ 
+                    display: 'flex', alignItems: 'center', 
+                    padding: '12px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: '8px' 
+                  }}>
+                    <div style={{ fontWeight: 600 }}>{friend.username}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No friends added yet.</p>
+            )}
           </div>
         </div>
 

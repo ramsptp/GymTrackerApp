@@ -57,6 +57,21 @@ export const profilesTable = new Table({
   updated_at: column.text,
 });
 
+export const friendshipsTable = new Table({
+  requester_id: column.text,
+  addressee_id: column.text,
+  status: column.text,
+  created_at: column.text,
+});
+
+export const workoutParticipantsTable = new Table({
+  workout_id: column.text,
+  user_id: column.text,
+  status: column.text,
+  role: column.text,
+  created_at: column.text,
+});
+
 export const AppSchema = new Schema({
   profiles: profilesTable,
   exercises: exercisesTable,
@@ -64,6 +79,8 @@ export const AppSchema = new Schema({
   snippet_exercises: snippet_exercises,
   workouts: workoutsTable,
   sets: setsTable,
+  friendships: friendshipsTable,
+  workout_participants: workoutParticipantsTable,
 });
 
 export type DatabaseSchema = typeof AppSchema;
@@ -115,4 +132,21 @@ export interface SetRecord {
   set_type: SetType;
   logged_at: string;
   user_id?: string | null;
+}
+
+export interface FriendshipRecord {
+  id: string; // UUID
+  requester_id: string;
+  addressee_id: string;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
+}
+
+export interface WorkoutParticipantRecord {
+  id: string; // UUID
+  workout_id: string;
+  user_id: string;
+  status: 'pending' | 'confirmed' | 'declined';
+  role: 'owner' | 'participant';
+  created_at: string;
 }

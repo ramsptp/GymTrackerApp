@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, Layers, History, Play, User, ChevronDown, Home } from 'lucide-react';
+import { Dumbbell, History, Play, User, ChevronDown, Home } from 'lucide-react';
 import { initDatabase, startWorkout } from './db/powersync';
 import type { SnippetRecord } from './db/schema';
 import { ActiveWorkout } from './components/ActiveWorkout';

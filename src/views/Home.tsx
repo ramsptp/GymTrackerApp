@@ -4,6 +4,7 @@ import { powersync, deleteSnippet } from '../db/powersync';
 import type { SnippetRecord, WorkoutRecord, SetRecord } from '../db/schema';
 import { useAuth } from '../context/AuthContext';
 import { useQuery } from '@powersync/react';
+import { Check, X } from 'lucide-react';
 
 interface HomeViewProps {
   onStartSnippetWorkout: (snippet: SnippetRecord) => void;
@@ -25,6 +26,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const { user } = useAuth();
   const { data: profileData } = useQuery('SELECT username FROM profiles WHERE id = ?', [user?.id || '']);
   const profile = profileData?.[0];
+
+  const { data: pendingInvitations } = useQuery(
+    `SELECT wp.id as invite_id, wp.workout_id, w.start_time, p.username as owner_username
+     FROM workout_participants wp
+     JOIN workouts w ON wp.workout_id = w.id
+     JOIN workout_participants owner_wp ON wp.workout_id = owner_wp.workout_id AND owner_wp.role = 'owner'
+     JOIN profiles p ON owner_wp.user_id = p.id
+     WHERE wp.user_id = ? AND wp.status = 'pending'`,
+    [user?.id || '']
+  );
 
   const loadData = async () => {
     try {
@@ -87,8 +98,61 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   };
 
+  const handleAcceptInvite = async (inviteId: string) => {
+    try {
+      await powersync.execute(`UPDATE workout_participants SET status = 'confirmed' WHERE id = ?`, [inviteId]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeclineInvite = async (inviteId: string) => {
+    try {
+      await powersync.execute(`UPDATE workout_participants SET status = 'declined' WHERE id = ?`, [inviteId]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={() => setOpenMenuId(null)}>
+      {/* Pending Workout Invitations Banner */}
+      {pendingInvitations && pendingInvitations.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {pendingInvitations.map((inv) => (
+            <div key={inv.invite_id} style={{
+              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+              border: '1px solid var(--accent-blue)',
+              borderRadius: '12px',
+              padding: '16px',
+            }}>
+              <h4 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                Shared Workout Invite
+              </h4>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                <strong>{inv.owner_username}</strong> tagged you in a workout on {new Date(inv.start_time).toLocaleDateString()}.
+              </p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="btn btn-primary"
+                  style={{ flex: 1, minHeight: '38px', height: '38px', fontSize: '0.85rem' }}
+                  onClick={() => handleAcceptInvite(inv.invite_id)}
+                >
+                  <Check size={16} /> Accept
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minHeight: '38px', height: '38px', fontSize: '0.85rem', color: 'var(--accent-rose)' }}
+                  onClick={() => handleDeclineInvite(inv.invite_id)}
+                >
+                  <X size={16} /> Decline
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Status & Quick Momentum Banner */}
       <div
         style={{
