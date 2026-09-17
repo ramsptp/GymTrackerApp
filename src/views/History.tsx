@@ -6,13 +6,19 @@ import type { WorkoutRecord, SetRecord } from '../db/schema';
 interface HistoryItem {
   workout: WorkoutRecord;
   snippetName: string;
-  totalVolume: number;
+  userVolume: number;
+  totalWorkoutVolume: number;
+  hasPartner: boolean;
+  participantInfo: { avatarUrl: string | null; initial: string }[];
   totalSets: number;
   durationMinutes: number;
-  sets: (SetRecord & { exercise_name?: string })[];
+  sets: (SetRecord & { exercise_name?: string, avatar_url?: string | null, username?: string })[];
 }
 
+import { useAuth } from '../context/AuthContext';
+
 export const HistoryView: React.FC = () => {
+  const { user } = useAuth();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +27,14 @@ export const HistoryView: React.FC = () => {
     try {
       setLoading(true);
       const workouts = await powersync.getAll<WorkoutRecord>(
-        'SELECT * FROM workouts WHERE end_time IS NOT NULL ORDER BY start_time DESC'
+        `SELECT w.* FROM workouts w 
+         WHERE w.end_time IS NOT NULL 
+           AND (
+             w.user_id = ? OR 
+             EXISTS (SELECT 1 FROM workout_participants wp WHERE wp.workout_id = w.id AND wp.user_id = ? AND wp.status = 'confirmed')
+           )
+         ORDER BY w.start_time DESC`,
+        [user?.id || '', user?.id || '']
       );
 
       const items: HistoryItem[] = [];
@@ -36,20 +49,58 @@ export const HistoryView: React.FC = () => {
           if (snip) snippetName = snip.name;
         }
 
-        const sets = await powersync.getAll<SetRecord & { exercise_name: string }>(
-          `SELECT s.*, e.name as exercise_name 
+        const sets = await powersync.getAll<SetRecord & { exercise_name: string, avatar_url: string | null, username: string }>(
+          `SELECT s.*, e.name as exercise_name, p.avatar_url, p.username 
            FROM sets s 
            LEFT JOIN exercises e ON s.exercise_id = e.id 
+           LEFT JOIN profiles p ON s.user_id = p.id
            WHERE s.workout_id = ? 
            ORDER BY s.logged_at ASC`,
           [w.id]
         );
 
-        let volume = 0;
+        let userVolume = 0;
+        let totalWorkoutVolume = 0;
+        let userSetsCount = 0;
+        let hasPartner = false;
+
         for (const s of sets) {
           if (s.set_type !== 'Warmup') {
-            volume += s.weight * s.reps;
+            const vol = s.weight * s.reps;
+            totalWorkoutVolume += vol;
+            if (s.user_id === user?.id) {
+              userVolume += vol;
+            } else {
+              hasPartner = true;
+            }
           }
+          if (s.user_id === user?.id) {
+            userSetsCount++;
+          }
+        }
+
+        const partners = await powersync.getAll<{ avatar_url: string | null, username: string }>(
+          `SELECT p.avatar_url, p.username 
+           FROM workout_participants wp
+           JOIN profiles p ON wp.user_id = p.id
+           WHERE wp.workout_id = ? AND wp.user_id != ? AND wp.status = 'confirmed'`,
+          [w.id, user?.id || '']
+        );
+        hasPartner = partners.length > 0;
+        
+        let participantInfo: { avatarUrl: string | null; initial: string }[] = [];
+        if (hasPartner) {
+          const allConfirmed = await powersync.getAll<{ avatar_url: string | null, username: string }>(
+            `SELECT p.avatar_url, p.username 
+             FROM workout_participants wp
+             JOIN profiles p ON wp.user_id = p.id
+             WHERE wp.workout_id = ? AND wp.status = 'confirmed'`,
+            [w.id]
+          );
+          participantInfo = allConfirmed.map(p => ({
+            avatarUrl: p.avatar_url,
+            initial: p.username ? p.username.substring(0, 2).toUpperCase() : 'U'
+          }));
         }
 
         const start = new Date(w.start_time).getTime();
@@ -59,8 +110,11 @@ export const HistoryView: React.FC = () => {
         items.push({
           workout: w,
           snippetName,
-          totalVolume: Math.round(volume),
-          totalSets: sets.length,
+          userVolume: Math.round(userVolume),
+          totalWorkoutVolume: Math.round(totalWorkoutVolume),
+          hasPartner,
+          participantInfo,
+          totalSets: userSetsCount > 0 ? userSetsCount : sets.length,
           durationMinutes: durationMins,
           sets,
         });
@@ -95,13 +149,20 @@ export const HistoryView: React.FC = () => {
     });
   };
 
-  const handleDeleteWorkout = async (e: React.MouseEvent, workoutId: string) => {
+  const handleDeleteWorkout = async (e: React.MouseEvent, workout: WorkoutRecord) => {
     e.stopPropagation();
     if (confirm('Delete this workout from history?')) {
-      setHistory((prev) => prev.filter(item => item.workout.id !== workoutId));
+      setHistory((prev) => prev.filter(item => item.workout.id !== workout.id));
       await powersync.writeTransaction(async (tx) => {
-        await tx.execute('DELETE FROM sets WHERE workout_id = ?', [workoutId]);
-        await tx.execute('DELETE FROM workouts WHERE id = ?', [workoutId]);
+        if (workout.user_id === user?.id) {
+          // Owner deleting: delete entire workout and all sets
+          await tx.execute('DELETE FROM sets WHERE workout_id = ?', [workout.id]);
+          await tx.execute('DELETE FROM workouts WHERE id = ?', [workout.id]);
+        } else {
+          // Friend (participant) deleting: only delete their sets and decline participation
+          await tx.execute('DELETE FROM sets WHERE workout_id = ? AND user_id = ?', [workout.id, user?.id || '']);
+          await tx.execute('UPDATE workout_participants SET status = ? WHERE workout_id = ? AND user_id = ?', ['declined', workout.id, user?.id || '']);
+        }
       });
       loadHistory();
     }
@@ -149,7 +210,7 @@ export const HistoryView: React.FC = () => {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button
-                    onClick={(e) => handleDeleteWorkout(e, item.workout.id)}
+                    onClick={(e) => handleDeleteWorkout(e, item.workout)}
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
                     title="Delete session"
                   >
@@ -159,12 +220,26 @@ export const HistoryView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Snippet Name Title */}
+              {/* Snippet Name Title & Partner Avatars */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <Layers size={18} color="var(--text-primary)" />
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {item.snippetName}
+                  {item.hasPartner ? (item.snippetName === 'Freestyle Session' ? 'Shared Freestyle' : item.snippetName) : item.snippetName}
                 </h3>
+                {item.hasPartner && item.participantInfo.length > 0 && (
+                  <div style={{ display: 'flex', marginLeft: 'auto' }}>
+                    {item.participantInfo.map((p, i) => (
+                      <div key={i} style={{ 
+                        width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'var(--accent-blue)',
+                        marginLeft: i > 0 ? '-10px' : '0', border: '2px solid var(--bg-surface)', zIndex: 10 - i,
+                        overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '11px', color: 'white', fontWeight: 'bold'
+                      }}>
+                        {p.avatarUrl ? <img src={p.avatarUrl} alt="User" crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.initial}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Telemetry Metrics Row (56px touch target friendly) */}
@@ -177,9 +252,14 @@ export const HistoryView: React.FC = () => {
                 </div>
 
                 <div style={{ background: 'var(--bg-surface-elevated)', padding: '12px 14px', borderRadius: '12px', minHeight: '52px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Total Volume</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Volume</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-                    {item.totalVolume.toLocaleString()} kg
+                    {item.userVolume.toLocaleString()} kg
+                    {item.hasPartner && (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginLeft: '4px' }}>
+                        ({item.totalWorkoutVolume.toLocaleString()})
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -213,6 +293,19 @@ export const HistoryView: React.FC = () => {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {item.hasPartner && (
+                            <div style={{ 
+                              width: '20px', height: '20px', borderRadius: '50%', overflow: 'hidden', 
+                              backgroundColor: 'var(--accent-blue)', display: 'flex', alignItems: 'center', 
+                              justifyContent: 'center', fontSize: '10px', color: '#fff', fontWeight: 'bold' 
+                            }}>
+                              {s.avatar_url ? (
+                                <img src={s.avatar_url} alt="User" crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                s.username ? s.username.substring(0, 2).toUpperCase() : 'U'
+                              )}
+                            </div>
+                          )}
                           <span style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                             {s.exercise_name || 'Exercise'}
                           </span>

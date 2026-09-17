@@ -34,7 +34,8 @@ const UserAvatar = ({ profile, color, fallbackLetter }: { profile: any, color: s
     return (
       <img 
         src={profile.avatar_url} 
-        alt="avatar" 
+        alt="avatar"
+        crossOrigin="anonymous"
         style={{ width: 24, height: 24, minWidth: 24, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${color}` }} 
       />
     );
@@ -78,18 +79,48 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
   // Elapsed workout timer
   useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    let startTimeMs = Date.now();
+    let isMounted = true;
 
-  // Load catalog exercises and snippet exercises from local SQLite
+    // Load actual start time from the DB to persist timer across reloads
+    powersync.getOptional<{ start_time: string }>('SELECT start_time FROM workouts WHERE id = ?', [workoutId])
+      .then((res) => {
+        if (isMounted && res?.start_time) {
+          let startStr = res.start_time;
+          // SQLite/Postgres might strip the 'Z' and use spaces, causing JS to parse as Local Time. 
+          // Force UTC parsing by converting to strict ISO format.
+          if (!startStr.endsWith('Z')) {
+            startStr = startStr.replace(' ', 'T') + 'Z';
+          }
+          startTimeMs = new Date(startStr).getTime();
+          setElapsedSeconds(Math.floor((Date.now() - startTimeMs) / 1000));
+        }
+      })
+      .catch(console.error);
+
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTimeMs) / 1000));
+    }, 1000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, [workoutId]);
+
+  // Load exercises from localStorage or db
   useEffect(() => {
     const loadExercises = async () => {
       try {
         const rows = await powersync.getAll<ExerciseRecord>('SELECT * FROM exercises ORDER BY name ASC');
         setAllCatalogExercises(rows);
+
+        // Try to recover from local storage
+        const savedState = localStorage.getItem(`workout_state_${workoutId}`);
+        if (savedState) {
+          setExercises(JSON.parse(savedState));
+          return;
+        }
 
         if (snippetId) {
           const snippetExercises = await powersync.getAll<ExerciseRecord>(
@@ -124,7 +155,14 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       }
     };
     loadExercises();
-  }, [snippetId, user, partnerId]);
+  }, [workoutId, snippetId, user, partnerId]);
+
+  // Auto-save state to localStorage
+  useEffect(() => {
+    if (exercises.length > 0) {
+      localStorage.setItem(`workout_state_${workoutId}`, JSON.stringify(exercises));
+    }
+  }, [exercises, workoutId]);
 
   const formatElapsed = (sec: number) => {
     const hrs = Math.floor(sec / 3600);
@@ -137,6 +175,21 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   };
 
   const handleAddSet = (exerciseIndex: number) => {
+    // Auto-log previous sets if they have reps
+    const currentEx = exercises[exerciseIndex];
+    if (user) {
+      const userSetIdx = currentEx.sets.findLastIndex(s => s.ownerId === user.id);
+      if (userSetIdx !== -1 && !currentEx.sets[userSetIdx].isLogged && currentEx.sets[userSetIdx].reps > 0) {
+        handleTapLogSet(exerciseIndex, userSetIdx);
+      }
+    }
+    if (partnerId) {
+      const partnerSetIdx = currentEx.sets.findLastIndex(s => s.ownerId === partnerId);
+      if (partnerSetIdx !== -1 && !currentEx.sets[partnerSetIdx].isLogged && currentEx.sets[partnerSetIdx].reps > 0) {
+        handleTapLogSet(exerciseIndex, partnerSetIdx);
+      }
+    }
+
     setExercises((prev) => {
       const updated = [...prev];
       updated[exerciseIndex] = { ...updated[exerciseIndex], sets: [...updated[exerciseIndex].sets] };
@@ -309,6 +362,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   };
 
   const handleFinishWorkout = async () => {
+    if (!confirm('Are you sure you want to finish this workout?')) return;
+
     let totalVolume = 0;
     let loggedSetsCount = 0;
     for (const ex of exercises) {
@@ -321,6 +376,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
     }
 
     await finishWorkout(workoutId);
+    localStorage.removeItem(`workout_state_${workoutId}`);
     setSummaryStats({
       volume: Math.round(totalVolume),
       sets: loggedSetsCount,
@@ -472,10 +528,14 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                                 step="0.5"
                                 className="num-input"
                                 value={s.weight}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => {
-                                  const val = parseFloat(e.target.value) || 0;
+                                  let val = parseFloat(e.target.value);
+                                  if (isNaN(val)) val = 0;
                                   setExercises((prev) => {
                                     const upd = [...prev];
+                                    upd[exIdx] = { ...upd[exIdx], sets: [...upd[exIdx].sets] };
+                                    upd[exIdx].sets[sIdx] = { ...upd[exIdx].sets[sIdx] };
                                     upd[exIdx].sets[sIdx].weight = val;
                                     return upd;
                                   });
@@ -489,10 +549,14 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                                 type="number"
                                 className="num-input"
                                 value={s.reps}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => {
-                                  const val = parseInt(e.target.value) || 0;
+                                  let val = parseInt(e.target.value);
+                                  if (isNaN(val)) val = 0;
                                   setExercises((prev) => {
                                     const upd = [...prev];
+                                    upd[exIdx] = { ...upd[exIdx], sets: [...upd[exIdx].sets] };
+                                    upd[exIdx].sets[sIdx] = { ...upd[exIdx].sets[sIdx] };
                                     upd[exIdx].sets[sIdx].reps = val;
                                     return upd;
                                   });
@@ -500,15 +564,6 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                               />
                             </div>
 
-                            {/* 1-Tap Log Set Completion */}
-                            <button
-                              type="button"
-                              className={`check-target-btn ${s.isLogged ? 'logged' : ''}`}
-                              onClick={() => handleTapLogSet(exIdx, sIdx)}
-                              title="1-Tap to log set"
-                            >
-                              <Check size={28} strokeWidth={s.isLogged ? 3.5 : 2} />
-                            </button>
                           </div>
 
                           {/* Quick Stepper adjustment for active row */}
@@ -520,6 +575,33 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                               <button type="button" className="stepper-chip" onClick={() => handleUpdateReps(exIdx, sIdx, 1)}>+1 rep</button>
                             </div>
                           )}
+
+                          {/* Finish Set / Log Checkmark Button */}
+                          <div style={{ width: '100%', marginTop: '8px' }}>
+                            <button
+                              type="button"
+                              className={`check-target-btn ${s.isLogged ? 'logged' : ''}`}
+                              onClick={() => handleTapLogSet(exIdx, sIdx)}
+                              style={{
+                                width: '100%',
+                                backgroundColor: s.isLogged ? 'var(--accent-green)' : 'rgba(16, 185, 129, 0.1)',
+                                borderColor: s.isLogged ? 'var(--accent-green)' : 'var(--accent-green)',
+                                color: s.isLogged ? 'white' : 'var(--accent-green)',
+                                fontSize: '0.85rem',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                padding: '12px'
+                              }}
+                            >
+                              {s.isLogged ? (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                  <Check size={20} strokeWidth={3} /> FINISHED
+                                </div>
+                              ) : (
+                                'FINISH SET'
+                              )}
+                            </button>
+                          </div>
                         </div>
 
                         {/* Delete specific row */}
@@ -574,6 +656,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
           onClick={async () => {
             if (confirm('Cancel this workout? Any unsaved progress will be discarded.')) {
               await cancelWorkout(workoutId);
+              localStorage.removeItem(`workout_state_${workoutId}`);
               onCancel();
             }
           }}
@@ -645,6 +728,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                           src={ex.thumbnail_url}
                           alt={ex.name}
                           loading="lazy"
+                          crossOrigin="anonymous"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           onError={(e) => {
                             (e.currentTarget as HTMLElement).style.display = 'none';

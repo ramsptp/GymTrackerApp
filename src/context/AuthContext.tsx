@@ -58,8 +58,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (initialSession?.user?.id) {
         await migrateGuestDataToUser(initialSession.user.id);
-        await fetchAndSyncProfile(initialSession.user.id);
-        await connectSync();
+        fetchAndSyncProfile(initialSession.user.id).catch(console.error);
+        connectSync().catch(console.error);
       }
       
       if (isMounted) setLoading(false);
@@ -82,8 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && currentSession?.user?.id) {
         // Atomically reassign offline/guest records to newly authenticated user before sync connects
         await migrateGuestDataToUser(currentSession.user.id);
-        await fetchAndSyncProfile(currentSession.user.id);
-        await connectSync();
+        fetchAndSyncProfile(currentSession.user.id).catch(console.error);
+        connectSync().catch(console.error);
       } else if (event === 'SIGNED_OUT') {
         await disconnectAndClearData();
       }

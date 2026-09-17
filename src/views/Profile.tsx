@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useStatus, useQuery } from '@powersync/react';
 import {
@@ -13,11 +13,14 @@ import {
   Search,
   UserPlus,
   UserCheck,
-  UserX
+  UserX,
+  Info
 } from 'lucide-react';
 import { connectSync, powersync } from '../db/powersync';
 import { supabase } from '../db/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../utils/cropImage';
 
 export const ProfileView: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -27,6 +30,7 @@ export const ProfileView: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSyncingManual, setIsSyncingManual] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   // Profile Form State
   const { data: profileData } = useQuery('SELECT * FROM profiles WHERE id = ?', [user?.id || '']);
@@ -43,6 +47,62 @@ export const ProfileView: React.FC = () => {
       if (profile.height_cm && !heightInput) setHeightInput(profile.height_cm.toString());
     }
   }, [profile]);
+
+  // Avatar Upload State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !user) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.addEventListener('load', () => setCropImageSrc(reader.result?.toString() || null));
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const onCropComplete = (_croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  const handleUploadCroppedImage = async () => {
+    if (!cropImageSrc || !croppedAreaPixels || !user) return;
+    setIsUploadingAvatar(true);
+    setCropImageSrc(null); // Close modal
+    
+    try {
+      const croppedFile = await getCroppedImg(cropImageSrc, croppedAreaPixels);
+      if (!croppedFile) throw new Error('Crop failed');
+
+      const filePath = `${user.id}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, croppedFile, { upsert: true, cacheControl: '0' });
+        
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+      await powersync.execute('UPDATE profiles SET avatar_url = ? WHERE id = ?', [avatarUrl, user.id]);
+      setSuccessMsg('Profile picture updated successfully!');
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg('Failed to upload profile picture.');
+      setTimeout(() => setErrorMsg(null), 3000);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   // Friends System State
   const [friendSearchInput, setFriendSearchInput] = useState('');
@@ -217,13 +277,21 @@ export const ProfileView: React.FC = () => {
   return (
     <div style={{ maxWidth: '488px', margin: '0 auto' }}>
       {/* View Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
-          Profile{profile?.username ? ` - ${profile.username}` : ''}
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
-          Cloud sync and device telemetry active
-        </p>
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
+            Profile{profile?.username ? ` - ${profile.username}` : ''}
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
+            Cloud sync and device telemetry active
+          </p>
+        </div>
+        <button
+          onClick={() => setIsInfoOpen(true)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+        >
+          <Info size={24} />
+        </button>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -231,6 +299,8 @@ export const ProfileView: React.FC = () => {
         <div className="card" style={{ marginBottom: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
             <div
+              onClick={handleAvatarClick}
+              title="Change Profile Picture"
               style={{
                 width: '56px',
                 height: '56px',
@@ -243,10 +313,29 @@ export const ProfileView: React.FC = () => {
                 fontWeight: 600,
                 fontSize: '1.4rem',
                 flexShrink: 0,
+                cursor: 'pointer',
+                overflow: 'hidden',
+                position: 'relative'
               }}
             >
-              {user.email?.charAt(0).toUpperCase() || 'U'}
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                user.email?.charAt(0).toUpperCase() || 'U'
+              )}
+              {isUploadingAvatar && (
+                <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <RefreshCw size={20} className="animate-spin" color="white" />
+                </div>
+              )}
             </div>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              accept="image/*"
+              onChange={handleFileChange}
+            />
             <div style={{ overflow: 'hidden', flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                 <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
@@ -670,6 +759,66 @@ export const ProfileView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Crop Modal */}
+      {cropImageSrc && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.9)',
+          display: 'flex', flexDirection: 'column'
+        }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Cropper
+              image={cropImageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          </div>
+          <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', backgroundColor: 'var(--bg-body)' }}>
+            <button className="btn btn-secondary" onClick={() => setCropImageSrc(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleUploadCroppedImage}>Upload</button>
+          </div>
+        </div>
+      )}
+
+      {/* Info Modal */}
+      {isInfoOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }} onClick={() => setIsInfoOpen(false)}>
+          <div 
+            style={{ 
+              backgroundColor: 'var(--bg-surface)', padding: '24px', borderRadius: '16px', 
+              width: '100%', maxWidth: '320px', border: '1px solid var(--border-subtle)',
+              textAlign: 'center'
+            }} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ width: '48px', height: '48px', backgroundColor: 'rgba(59, 130, 246, 0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Info size={24} color="var(--accent-blue)" />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+              About Gym Tracker
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: '20px' }}>
+              Made by Rams and not for commercial purposes. Feel free to use it for personal tracking and sharing workouts with friends!
+            </p>
+            <button 
+              className="btn btn-primary" 
+              style={{ width: '100%', height: '44px' }}
+              onClick={() => setIsInfoOpen(false)}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

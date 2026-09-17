@@ -1,10 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import pg from 'pg';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 function loadEnv() {
   const envFiles = ['.env.local', '.env'];
@@ -28,21 +24,12 @@ function loadEnv() {
     }
   }
 }
-
 loadEnv();
 
 const DEFAULT_DB_URL = 'postgresql://postgres.tltovcuzhgpjorunajij:RamsGymTracker@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres';
 const databaseUrl = process.env.DATABASE_URL || DEFAULT_DB_URL;
 
-async function runMigration() {
-  const projectRoot = path.resolve(__dirname, '..');
-  const migrationPath = path.join(projectRoot, 'supabase', 'migrations', '20260917_add_avatars_bucket.sql');
-
-  if (!fs.existsSync(migrationPath)) {
-    console.error(`❌ Error: Migration file not found at ${migrationPath}`);
-    process.exit(1);
-  }
-
+async function checkAvatar() {
   const client = new pg.Client({
     connectionString: databaseUrl,
     ssl: { rejectUnauthorized: false },
@@ -50,22 +37,26 @@ async function runMigration() {
   });
 
   try {
-    console.log('⏳ Connecting to Supabase PostgreSQL database...');
     await client.connect();
-    console.log('✅ Connected successfully!\n');
+    
+    // Check buckets
+    const bucketRes = await client.query("SELECT id, name, public FROM storage.buckets WHERE id = 'avatars'");
+    console.log("Bucket config:", bucketRes.rows);
 
-    console.log('🛠️  Applying avatars bucket migration...');
-    const migrationSql = fs.readFileSync(migrationPath, 'utf8');
-    await client.query(migrationSql);
-    console.log('✅ Avatars bucket and RLS policies successfully applied!\n');
+    // Check policies
+    const policyRes = await client.query("SELECT * FROM pg_policies WHERE tablename = 'objects'");
+    console.log("Storage Policies:");
+    policyRes.rows.forEach(r => console.log(r.policyname, r.cmd));
 
-  } catch (err: any) {
-    console.error('\n❌ Error during migration:');
-    console.error(err.message || err);
-    process.exit(1);
+    // Check profiles
+    const profileRes = await client.query("SELECT id, username, avatar_url FROM profiles");
+    console.log("Profiles:", profileRes.rows);
+
+  } catch (err) {
+    console.error(err);
   } finally {
-    await client.end().catch(() => {});
+    await client.end();
   }
 }
 
-runMigration();
+checkAvatar();

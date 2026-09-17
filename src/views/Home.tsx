@@ -80,14 +80,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
       const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
       const weekWorkouts = await powersync.getAll<{ count: number }>(
-        'SELECT count(*) as count FROM workouts WHERE end_time IS NOT NULL AND start_time >= ?',
-        [oneWeekAgo]
+        `SELECT count(*) as count 
+         FROM workouts w 
+         WHERE w.end_time IS NOT NULL AND w.start_time >= ?
+         AND (
+           w.user_id = ? OR 
+           EXISTS (SELECT 1 FROM workout_participants wp WHERE wp.workout_id = w.id AND wp.user_id = ? AND wp.status = 'confirmed')
+         )`,
+        [oneWeekAgo, user?.id || '', user?.id || '']
       );
       setWeeklyCount(weekWorkouts[0]?.count || 0);
 
       const monthWorkouts = await powersync.getAll<WorkoutRecord>(
-        'SELECT id FROM workouts WHERE end_time IS NOT NULL AND start_time >= ?',
-        [oneMonthAgo]
+        `SELECT id 
+         FROM workouts w 
+         WHERE w.end_time IS NOT NULL AND w.start_time >= ?
+         AND (
+           w.user_id = ? OR 
+           EXISTS (SELECT 1 FROM workout_participants wp WHERE wp.workout_id = w.id AND wp.user_id = ? AND wp.status = 'confirmed')
+         )`,
+        [oneMonthAgo, user?.id || '', user?.id || '']
       );
       setMonthlySessions(monthWorkouts.length);
 
@@ -95,8 +107,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
       let totalVol = 0;
       for (const w of monthWorkouts) {
         const sets = await powersync.getAll<SetRecord>(
-          "SELECT weight, reps FROM sets WHERE workout_id = ? AND set_type != 'Warmup'",
-          [w.id]
+          "SELECT weight, reps FROM sets WHERE workout_id = ? AND set_type != 'Warmup' AND user_id = ?",
+          [w.id, user?.id || '']
         );
         for (const s of sets) {
           totalVol += s.weight * s.reps;
@@ -113,7 +125,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }, []);
 
   const handleDeleteSnippetItem = async (id: string) => {
-    if (confirm('Delete this workout snippet?')) {
+    if (confirm('Delete this workout routine?')) {
       setSnippets((prev) => prev.filter(s => s.id !== id));
       await deleteSnippet(id);
       loadData();
@@ -407,19 +419,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* My Snippets Section */}
+      {/* My Routines Section */}
       <div id="my-snippets-section" style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              My Snippets
+              My Routines
             </h3>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, background: 'var(--bg-surface-elevated)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: '10px' }}>
               {snippets.length}
             </span>
           </div>
 
-          {/* + NEW SNIPPET button navigating directly to /snippet-builder */}
+          {/* + NEW ROUTINE button navigating directly to /snippet-builder */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -442,11 +454,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
             id="btn-new-snippet-header"
           >
             <Plus size={16} strokeWidth={3} />
-            <span>+ New Snippet</span>
+            <span>+ New Routine</span>
           </button>
         </div>
 
-        {/* Snippets Stack */}
+        {/* Routines Stack */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {snippets.map((snippet) => (
             <div
@@ -468,7 +480,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   {snippet.name}
                 </h4>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  Snippet ID: {snippet.id.slice(0, 8)}...
+                  Routine ID: {snippet.id.slice(0, 8)}...
                 </div>
               </div>
 
@@ -495,7 +507,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       cursor: 'pointer',
                     }}
                     id={`btn-snippet-options-${snippet.id}`}
-                    title="Snippet options"
+                    title="Routine options"
                   >
                     <MoreVertical size={20} />
                   </button>
@@ -545,7 +557,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         id={`btn-edit-snippet-${snippet.id}`}
                       >
                         <Edit3 size={16} color="var(--accent-blue)" />
-                        <span>Edit Snippet</span>
+                        <span>Edit Routine</span>
                       </button>
 
                       <button
@@ -573,7 +585,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         id={`btn-delete-snippet-${snippet.id}`}
                       >
                         <Trash2 size={16} />
-                        <span>Delete Snippet</span>
+                        <span>Delete Routine</span>
                       </button>
                     </div>
                   )}
@@ -596,13 +608,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {snippets.length === 0 && (
             <div style={{ textAlign: 'center', padding: '40px 20px', background: 'var(--bg-surface)', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
               <Layers size={40} color="var(--text-muted)" style={{ opacity: 0.3, margin: '0 auto 10px auto' }} />
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>No snippets saved yet.</p>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>No routines saved yet.</p>
               <button
                 className="btn btn-primary"
                 style={{ marginTop: '12px', minHeight: '48px' }}
                 onClick={() => onNavigateToBuilder()}
               >
-                + Create First Snippet
+                + Create First Routine
               </button>
             </div>
           )}

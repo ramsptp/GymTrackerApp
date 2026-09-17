@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dumbbell, History, Play, User, ChevronDown, Home } from 'lucide-react';
-import { initDatabase, startWorkout } from './db/powersync';
+import { initDatabase, startWorkout, powersync } from './db/powersync';
 import type { SnippetRecord } from './db/schema';
 import { ActiveWorkout } from './components/ActiveWorkout';
 import { HomeView } from './views/Home';
@@ -10,7 +10,7 @@ import { SnippetBuilderView } from './views/SnippetBuilder';
 import { ProfileView } from './views/Profile';
 import { SyncStatusBadge } from './components/SyncStatusBadge';
 import { useAuth } from './context/AuthContext';
-import { useQuery } from '@powersync/react';
+import { useQuery, useStatus } from '@powersync/react';
 import { LandingView } from './views/Landing';
 
 export const App: React.FC = () => {
@@ -29,8 +29,23 @@ export const App: React.FC = () => {
   const [isDbReady, setIsDbReady] = useState(false);
 
   const { user, loading } = useAuth();
+  const status = useStatus();
+
   const { data: profileData, isLoading: isProfileLoading } = useQuery('SELECT username FROM profiles WHERE id = ?', [user?.id || '']);
   const profileUsername = profileData?.[0]?.username || null;
+
+  // Notification Badge Queries
+  const { data: pendingInvitesData } = useQuery(
+    user?.id ? `SELECT count(*) as count FROM workout_participants WHERE user_id = ? AND status = 'pending'` : '',
+    user?.id ? [user.id] : []
+  );
+  const pendingInvitesCount = pendingInvitesData?.[0]?.count || 0;
+
+  const { data: pendingFriendsData } = useQuery(
+    user?.id ? `SELECT count(*) as count FROM friendships WHERE addressee_id = ? AND status = 'pending'` : '',
+    user?.id ? [user.id] : []
+  );
+  const pendingFriendsCount = pendingFriendsData?.[0]?.count || 0;
 
   // Sync state with browser navigation (popstate)
   useEffect(() => {
@@ -61,6 +76,36 @@ export const App: React.FC = () => {
     };
     bootstrap();
   }, []);
+
+  // Auto-resume active workouts
+  useEffect(() => {
+    const checkActiveWorkout = async () => {
+      if (user && isDbReady && !activeWorkout) {
+        const active = await powersync.getOptional<{id: string, snippet_id: string, name: string}>(
+          `SELECT w.id, w.snippet_id, s.name 
+           FROM workouts w 
+           LEFT JOIN snippets s ON w.snippet_id = s.id 
+           WHERE w.user_id = ? AND w.end_time IS NULL 
+           ORDER BY w.start_time DESC LIMIT 1`, 
+          [user.id]
+        );
+        if (active) {
+          const participant = await powersync.getOptional<{user_id: string}>(
+            `SELECT user_id FROM workout_participants WHERE workout_id = ? AND user_id != ? AND role = 'participant' LIMIT 1`,
+            [active.id, user.id]
+          );
+          setActiveWorkout({
+            workoutId: active.id,
+            snippetId: active.snippet_id,
+            snippetName: active.name || 'Freestyle Workout',
+            partnerId: participant?.user_id
+          });
+          setIsWorkoutExpanded(false);
+        }
+      }
+    };
+    checkActiveWorkout();
+  }, [user, isDbReady]);
 
   const handleStartSnippetWorkout = async (snippet: SnippetRecord, partnerId?: string) => {
     const workoutId = await startWorkout(snippet.id);
@@ -103,7 +148,8 @@ export const App: React.FC = () => {
     }
   }
 
-  const isHydratingProfile = user && isProfileLoading;
+  // Wait for PowerSync to complete its initial sync before determining if the user lacks a profile
+  const isHydratingProfile = user && (!status.hasSynced || isProfileLoading);
 
   if (loading || !isDbReady || isHydratingProfile) {
     return (
@@ -277,7 +323,15 @@ export const App: React.FC = () => {
             onClick={() => navigate('/')}
             id="tab-snippets"
           >
-            <Home size={22} />
+            <div style={{ position: 'relative' }}>
+              <Home size={22} />
+              {pendingInvitesCount > 0 && (
+                <div style={{
+                  position: 'absolute', top: -2, right: -4, width: 10, height: 10, 
+                  backgroundColor: 'var(--accent-rose)', borderRadius: '50%', border: '2px solid var(--bg-body)'
+                }} />
+              )}
+            </div>
             <span>Home</span>
           </button>
 
@@ -304,7 +358,15 @@ export const App: React.FC = () => {
             onClick={() => navigate('/profile')}
             id="tab-profile"
           >
-            <User size={22} />
+            <div style={{ position: 'relative' }}>
+              <User size={22} />
+              {pendingFriendsCount > 0 && (
+                <div style={{
+                  position: 'absolute', top: -2, right: -4, width: 10, height: 10, 
+                  backgroundColor: 'var(--accent-rose)', borderRadius: '50%', border: '2px solid var(--bg-body)'
+                }} />
+              )}
+            </div>
             <span>Profile</span>
           </button>
         </nav>

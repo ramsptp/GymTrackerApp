@@ -316,7 +316,7 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
             color: 'var(--text-primary)',
           }}
         >
-          {snippetId ? 'Edit Snippet' : 'New Snippet'}
+          {snippetId ? 'Edit Routine' : 'New Routine'}
         </span>
 
         <button
@@ -353,12 +353,12 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
             marginBottom: '6px',
           }}
         >
-          Snippet Name
+          Routine Name
         </label>
         <input
           type="text"
           autoFocus
-          placeholder="e.g., Push Day A (Chest / Shoulders)"
+          placeholder="e.g. Pull Day, Leg Day..."
           value={snippetName}
           onChange={(e) => setSnippetName(e.target.value)}
           style={{
@@ -445,7 +445,7 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
               }}
             >
               <Dumbbell size={36} style={{ opacity: 0.3, margin: '0 auto 8px auto' }} />
-              <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>No exercises in this snippet yet.</p>
+              <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>No exercises in this routine yet.</p>
               <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>
                 Tap "+ Add Exercise" below to build your routine.
               </p>
@@ -501,7 +501,7 @@ export const SnippetBuilderView: React.FC<SnippetBuilderProps> = ({
                   Add Exercise
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Tap to add to your workout snippet
+                  Tap to add to your workout routine
                 </p>
               </div>
 
