@@ -1,4 +1,4 @@
-package com.antigravity.gymtracker;
+package com.rams.gymtracker;
 
 import com.getcapacitor.BridgeActivity;
 

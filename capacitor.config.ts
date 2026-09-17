@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.antigravity.gymtracker',
+  appId: 'com.rams.gymtracker',
   appName: 'Gym Tracker',
   webDir: 'dist',
   server: {
