@@ -340,6 +340,7 @@ export async function finishWorkout(workoutId: string) {
 
 export async function cancelWorkout(workoutId: string) {
   await powersync.writeTransaction(async (tx) => {
+    await tx.execute('DELETE FROM workout_participants WHERE workout_id = ?', [workoutId]);
     await tx.execute('DELETE FROM sets WHERE workout_id = ?', [workoutId]);
     await tx.execute('DELETE FROM workouts WHERE id = ?', [workoutId]);
   });

@@ -90,17 +90,27 @@ export const App: React.FC = () => {
           [user.id]
         );
         if (active) {
-          const participant = await powersync.getOptional<{user_id: string}>(
-            `SELECT user_id FROM workout_participants WHERE workout_id = ? AND user_id != ? AND role = 'participant' LIMIT 1`,
-            [active.id, user.id]
-          );
+          // If we have local storage meta matching the active workout, use its partnerId
+          let partnerId: string | undefined = undefined;
+          const savedMetaStr = localStorage.getItem('active_workout_meta');
+          if (savedMetaStr) {
+            try {
+              const savedMeta = JSON.parse(savedMetaStr);
+              if (savedMeta.workoutId === active.id) {
+                partnerId = savedMeta.partnerId;
+              }
+            } catch (e) {}
+          }
+          
           setActiveWorkout({
             workoutId: active.id,
             snippetId: active.snippet_id,
             snippetName: active.name || 'Freestyle Workout',
-            partnerId: participant?.user_id
+            partnerId
           });
           setIsWorkoutExpanded(false);
+        } else {
+          localStorage.removeItem('active_workout_meta');
         }
       }
     };
@@ -109,32 +119,38 @@ export const App: React.FC = () => {
 
   const handleStartSnippetWorkout = async (snippet: SnippetRecord, partnerId?: string) => {
     const workoutId = await startWorkout(snippet.id);
-    setActiveWorkout({
+    const meta = {
       workoutId,
       snippetId: snippet.id,
       snippetName: snippet.name,
       partnerId,
-    });
+    };
+    setActiveWorkout(meta);
+    localStorage.setItem('active_workout_meta', JSON.stringify(meta));
     setIsWorkoutExpanded(true);
   };
 
   const handleStartFreestyleWorkout = async (partnerId?: string) => {
     const workoutId = await startWorkout();
-    setActiveWorkout({
+    const meta = {
       workoutId,
       snippetName: 'Freestyle Workout',
       partnerId,
-    });
+    };
+    setActiveWorkout(meta);
+    localStorage.setItem('active_workout_meta', JSON.stringify(meta));
     setIsWorkoutExpanded(true);
   };
 
   const handleFinishActiveWorkout = () => {
     setActiveWorkout(null);
+    localStorage.removeItem('active_workout_meta');
     navigate('/history');
   };
 
   const handleCancelActiveWorkout = () => {
     setActiveWorkout(null);
+    localStorage.removeItem('active_workout_meta');
   };
 
   // Route matching for Snippet Builder
